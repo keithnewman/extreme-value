@@ -9,6 +9,7 @@
 #' @version: 1.1.0
 
 library(shiny)
+library(plotly)
 shinyUI(
 	fluidPage(
 		theme = "cosmo.css",
@@ -87,13 +88,9 @@ shinyUI(
 					)
 				),
 				fluidRow(
-					column(6,
-						h3("Histogram"),
-						plotOutput("datafileHistogram")
-					),
-					column(6,
-						h3("Boxplot"),
-						plotOutput("datafileBoxplot")
+					column(12,
+						h3("Exploratory plots"),
+						plotlyOutput("exploratoryPlots")
 					)
 				)
 			), # End of Data upload tab
@@ -117,7 +114,7 @@ shinyUI(
 					),
 					column(8,
 						h3("Plot of probabilities"),
-						plotOutput("RFplot", height=500)
+						plotlyOutput("RFplot")
 					)
 				),
 				fluidRow(
