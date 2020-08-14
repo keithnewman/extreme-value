@@ -1,3 +1,13 @@
+# SPDX-Copyright: Copyright (c) 2016 Keith Newman
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+#' Shiny app to introduce concepts of frequentist analysis of
+#' extreme-value data
+#'
+#' @author: Keith Newman
+#' @contact: knewma@hotmail.com
+#' @version: 1.0.0
+
 library(shiny)
 library(ggplot2)
 
