@@ -192,7 +192,7 @@ shinyUI(
 							),
 							column(8,
 								h3("Plot of probabilities"),
-								plotOutput("gumbelPlot", height=500)
+								plotlyOutput("gumbelPlot")
 							)
 						),
 						fluidRow(

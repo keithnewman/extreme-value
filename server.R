@@ -199,7 +199,7 @@ shinyServer(
 							y = ~Probability) %>%
 				add_lines(line = list(shape = "hv"),
 			            name = "Probability",
-								  hovertemplate = paste0("Pr(X &#x2265; %{x:.2f} ",
+								  hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
 									                       input$dataUnits,
 																				 ") = %{y:.4f}")) %>%
 				add_markers(data = relFrequencyPlotData2(),
@@ -280,76 +280,74 @@ shinyServer(
 		### Two parameter Gumbel Model ###
 		output$dataTypeTPGM <- renderText({tolower(input$dataType)})
 
-		calculateGumbelParameters <- function(dataset) {
-			#set initial values for the parameter vector theta=c(mu,sigma)
-			theta <- c(mean(dataset), sd(dataset))
-			gumbel.loglik <- function(theta){
-				mu <- theta[1]
-				sigma <- theta[2]
-				loglik <- -length(dataset) * log(sigma) - sum(exp(-((dataset - mu) / sigma))) - sum((dataset - mu) / sigma)
-				return(-loglik)
-			}
-			return(nlm(gumbel.loglik, theta)$est)
+		#' Negative log-likelihood for the Gumbel model
+		gumbel.loglik <- function(theta) {
+			mu <- theta[1]
+			sigma <- theta[2]
+			loglik <- -length(dataset()) * log(sigma) -
+									sum(exp(-((dataset() - mu) / sigma))) -
+									sum((dataset() - mu) / sigma)
+			return(-loglik)
 		}
-		gumbelParameters <- reactive({calculateGumbelParameters(dataset())})
+
+		dgumbel <- function(x, mu, sigma) {
+			return(1 - exp(-exp(-((x - mu) / sigma))))
+		}
+
+		#' Find the maximum likelihood estimates of the Gumbel distribution
+		gumbelParameters <- reactive({
+			#set initial values for the parameter vector theta=c(mu,sigma)
+			theta <- c(mean(dataset()), sd(dataset()))
+			return(nlm(gumbel.loglik, theta)$est)
+		})
 
 		output$gumbelTablePreamble <- renderUI({
-			validate(
-				need(input$dataIn, "Please upload a dataset to see more information!")
-			)
 			withMathJax(
-				paste0(
-					"For the data you provided, we have found that \\(\\mu=",
-					round(gumbelParameters()[1], 3),
-					"\\) and \\(\\sigma=",
-					round(gumbelParameters()[2], 3),
-					"\\) (Both values given to 3 decimal places)."
+				sprintf(
+					"For the data you provided, we have found that \\(\\mu=%0.3f\\)
+					and \\(\\sigma=%0.3f\\) (Both values given to 3 decimal places).",
+					gumbelParameters()[1],
+					gumbelParameters()[2]
 				)
 			)
 		})
 
 		# Create data table of cumulative counts and probabilities
-		makeGumbelTable <- function (d) {
-			gumb <- data.frame(x = relFreqTable()$x)
-			gumb$`Probability of exceeding x` <- sapply(
-				gumb[, 1],
-				function(x) {
-					return(
-						1 - exp(-exp(-((x-gumbelParameters()[1]) / gumbelParameters()[2])))
-					)
-				}
-			)
-			return(gumb)
-		}
-		gumbelTable <- reactive({makeGumbelTable(dataset())})
+		gumbelTable <- reactive({
+			x <- relFreqTable()$x
+			prExceedX <- sapply(x,
+                          dgumbel,
+													mu = gumbelParameters()[1],
+													sigma = gumbelParameters()[2])
+			return(data.frame(x = x,
+			                  `Probability of exceeding x` = prExceedX,
+											  check.names = FALSE))
+		})
 		output$gumbelTable <- renderTable({
-			validate(need(input$dataIn, ""))
 			return(gumbelTable())
 		}, include.rownames = FALSE)
 		outputOptions(
-			output, "gumbelTable", priority = -2, suspendWhenHidden = FALSE
+			output, "gumbelTable", priority = -2, suspendWhenHidden = TRUE
 		)
 
-		# Create the plot
-		output$gumbelPlot <- renderPlot({
-			validate(need(input$dataIn, ""))
-			return(
-				ggplot(data.frame(x=range(relFrequencyPlotData()[, 1])), aes(x)) +
-				stat_function(
-					fun = function(x) {
-						return(
-							1-exp(-exp(-((x-gumbelParameters()[1]) / gumbelParameters()[2])))
-						)
-					}
-				) +
-				scale_x_continuous(paste0(input$dataType, " (", input$dataUnits, ")")) +
-				scale_y_continuous("Probability density") +
-				theme_bw()
-			)
+		# Create a gumbel plot
+		output$gumbelPlot <- renderPlotly({
+			x <- seq(from = min(gumbelTable()$x),
+               to = max(gumbelTable()$x),
+							 by = 0.01)
+		  p <- sapply(x,
+                  dgumbel,
+									mu = gumbelParameters()[1],
+									sigma = gumbelParameters()[2])
+			d <- tibble(x = x, Probability = p)
+			return(plot_ly(d, x = ~x, y = ~Probability) %>%
+							add_lines(line = list(shape = "spline"),
+							          name = "Probability",
+							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
+																			         input$dataUnits,
+																			         ") = %{y:.4f}")))
 		})
-		outputOptions(
-			output, "gumbelPlot", priority = -2, suspendWhenHidden = FALSE
-		)
+		outputOptions(output, "gumbelPlot", priority = -2)
 
 		# Find a probability: input slider
 		output$gumbelProbabilitySlider <- renderUI({
@@ -375,26 +373,29 @@ shinyServer(
 		)
 		# Find a probability: text description
 		output$gumbelProbabilityDescription <- renderUI({
-			validate(need(input$gumbelProbabilityInput, ""))
 			return(
 				withMathJax(
 					p(
-						paste0(
-							"The probability of observing a ",
-							tolower(input$dataType),
-							" greater than \\(x=",input$gumbelProbabilityInput,"\\) ",
-							input$dataUnits,
-							" every ", input$dataTimeframe," is given by $$\\mathrm{Pr}(X>",
-							input$gumbelProbabilityInput,
-							")=1-\\exp\\left[-\\exp\\left\\{-\\left(\\frac{",
-							input$gumbelProbabilityInput,
-							"-",
-							round(gumbelParameters()[1], 3),
-							"}{",
-							round(gumbelParameters()[2], 3),
-							"}\\right)\\right\\}\\right]=",
-							signif(1-exp(-exp(-((input$gumbelProbabilityInput-gumbelParameters()[1]) / gumbelParameters()[2]))), 4),
-							"\\text{ (to 4 significant figures).}$$"
+						sprintf(
+							"The probability of observing a %1$s greater than
+							\\(x=%2$0.2f\\) %3$s every %4$s is given by
+							$$\\mathrm{Pr}(X>%2$0.2f)=
+								1-\\exp\\left[
+									-\\exp\\left\\{
+										-\\left(
+											\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}
+										\\right)
+									\\right\\}
+								\\right]=%7$0.4f\\text{ (to 4 significant figures).}$$",
+							tolower(input$dataType), #1
+							input$gumbelProbabilityInput, #2
+							input$dataUnits, #3
+							input$dataTimeframe, #4
+							gumbelParameters()[1], #5
+							gumbelParameters()[2], #6
+							dgumbel(input$gumbelProbabilityInput,
+								      gumbelParameters()[1],
+											gumbelParameters()[2]) #7
 						)
 					)
 				)
@@ -414,25 +415,16 @@ shinyServer(
 			)
 		})
 		output$gumbelWallHeightCalculation <- renderUI({
-			validate(
-				need(
-					input$dataIn,
-					"This calculation is unavailable as no data has been uploaded!"
-				)
-			)
 			return(
-				paste0(
-					"$$x=",
-					round(gumbelParameters()[1], 3),
-					"-",
-					round(gumbelParameters()[2], 3),
-					"\\log\\left[-\\log\\left(1-\\frac{1}{",
-					input$gumbelWallHeightInput,
-					"}\\right)\\right]=",
-					round(gumbelParameters()[1]-gumbelParameters()[2]*log(-log(1-(1 / input$gumbelWallHeightInput))), 2),
-					"\\text{ ",
-					input$dataUnits,
-					" (to 2 decimal places).}$$"
+				sprintf(
+					"$$x=%1$0.3f-%2$0.3f\\log\\left[
+						-\\log\\left(1-\\frac{1}{%3$0.2f}\\right)
+					\\right]=%4$0.2f\\text{ %5$s (to 2 decimal places).}$$",
+					gumbelParameters()[1], #1
+					gumbelParameters()[2], #2
+					input$gumbelWallHeightInput, #3
+					gumbelParameters()[1] - gumbelParameters()[2] * log(-log(1 - (1 / input$gumbelWallHeightInput))), #4
+					input$dataUnits #5
 				)
 			)
 		})
