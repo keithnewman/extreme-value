@@ -6,7 +6,7 @@
 #'
 #' @author: Keith Newman
 #' @contact: knewma@hotmail.com
-#' @version: 1.0.0
+#' @version: 1.1.0
 
 library(shiny)
 library(ggplot2)
