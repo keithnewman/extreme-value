@@ -277,7 +277,7 @@ shinyServer(
 				our %5$i observations. Therefore, the probability of observing a %2$s
 				greater than \\(x=%3$.2f\\) %4$s every %6$s is given by
 				$$\\mathrm{Pr}(X>x=%3$.2f)=\\frac{%1$i}{%5$i}=%7$0.4f
-				\\text{ (to 4 significant figures).} $$",
+				\\text{ (to 4 decimal places).} $$",
 				exceedances, #1
 				tolower(input$dataType), #2
 				input$RFProbabilityInput, #3
@@ -391,10 +391,10 @@ shinyServer(
 			sliderRange <- range(relFrequencyPlotData()[, 1])
 			return(
 				sliderInput("gumbelProbabilityInput",
-					label = h4(
-						"Choose a ",
+					label = paste(
+						"Choose a",
 						input$dataType,
-						" to find the probability of exceeding it every ",
+						"to find the probability of exceeding it every",
 						input$dataTimeframe
 					),
 					min = max(0, sliderRange[1] - 2),
@@ -422,7 +422,7 @@ shinyServer(
 											\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}
 										\\right)
 									\\right\\}
-								\\right]=%7$0.4f\\text{ (to 4 significant figures).}$$",
+								\\right]=%7$0.4f\\text{ (to 4 decimal places).}$$",
 							tolower(input$dataType), #1
 							input$gumbelProbabilityInput, #2
 							input$dataUnits, #3
@@ -454,11 +454,9 @@ shinyServer(
 		# Return Standard Errors
 		gumbelWallSE <- reactive({
 			hess <- solve(gumbelFit()$hessian)
-			est <- gumbelParameters()
 			del <- matrix(c(1, -log(-log(1 - (1 / input$gumbelWallHeightInput)))),
-			             ncol = 1, nrow = 2)
-			del.transpose = t(del)
-			error = sqrt(del.transpose %*% hess %*% del)
+			              ncol = 1, nrow = 2)
+			error = sqrt(t(del) %*% hess %*% del)
 			return(error)
 		})
 
@@ -473,7 +471,7 @@ shinyServer(
 					input$gumbelWallHeightInput, #3
 					gumbelParameters()[1] - gumbelParameters()[2] * log(-log(1 - (1 / input$gumbelWallHeightInput))), #4
 					ifelse(input$standardErrorGumbelWall,
-						     sprintf("\\ (%.0f)", gumbelWallSE()), ""), #5
+						     sprintf("\\ (%.2f)", gumbelWallSE()), ""), #5
 					input$dataUnits #6
 				)
 			))
@@ -594,7 +592,7 @@ shinyServer(
 										\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}
 									\\right)\\right]^{-\\frac{1}{%7$0.3f}}
 								\\right\\}
-								=%8$0.4f\\text{ (to 4 significant figures).}$$",
+								=%8$0.4f\\text{ (to 4 decimal places).}$$",
 							tolower(input$dataType), #1
 							input$GEVProbabilityInput, #2
 							input$dataUnits, #3
@@ -633,8 +631,7 @@ shinyServer(
 									   (est[2] * est[3]^(-2) * (1 - y^(-est[3]))) -
 										   (est[2] * est[3]^(-1) * y^(-est[3]) * log(y))),
 			             ncol = 1, nrow = 3)
-			del_transpose = t(del)
-			error = sqrt(del_transpose %*% hess %*% del)
+			error = sqrt(t(del) %*% hess %*% del)
 			return(error)
 		})
 
@@ -752,7 +749,7 @@ shinyServer(
 							\\(x=%2$0.2f\\) %3$s every %4$s is given by
 							$$\\mathrm{Pr}(X>%2$0.2f)=
 								1-\\Phi\\left(\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}\\right)
-								=%7$0.4f\\text{ (to 4 significant figures).}$$",
+								=%7$0.4f\\text{ (to 4 decimal places).}$$",
 							tolower(input$dataType), #1
 							input$normalProbabilityInput, #2
 							input$dataUnits, #3
@@ -875,7 +872,7 @@ shinyServer(
 							\\(x=%2$0.2f\\) %3$s every %4$s is given by
 							$$\\mathrm{Pr}(X>%2$0.2f)=
 								\\exp(-%5$0.3f\\times{}%2$0.2f)
-								=%6$0.4f\\text{ (to 4 significant figures).}$$",
+								=%6$0.4f\\text{ (to 4 decimal places).}$$",
 							tolower(input$dataType), #1
 							input$expProbabilityInput, #2
 							input$dataUnits, #3
@@ -901,7 +898,7 @@ shinyServer(
 
 		# Return Standard Errors
 		expWallSE <- reactive({
-		  del = -((expParameterMean() ^ 2) * log(input$expWallHeightInput))
+		  del = -(expParameterMean() ^ 2) * log(input$expWallHeightInput)
 		  hess = (expParameterLambda() ^ 2) / dataLength()
 		  error = sqrt(t(del) %*% hess %*% del)
 		  return(error)
@@ -1029,7 +1026,7 @@ shinyServer(
 								{\\Gamma(%5$0.3f)}
 								\\int_{%2$0.2f}^{\\infty}{t^{%5$0.3f-1}
 								\\exp\\left(-%6$0.3f t\\right)\\mathop{dt}}
-								=%7$0.4f\\text{ (to 4 significant figures).}$$",
+								=%7$0.4f\\text{ (to 4 decimal places).}$$",
 							tolower(input$dataType), #1
 							input$gammaProbabilityInput, #2
 							input$dataUnits, #3
