@@ -6,7 +6,7 @@
 #'
 #' @author: Keith Newman
 #' @contact: knewma@hotmail.com
-#' @version: 1.2.0
+#' @version: 1.2.1
 
 library(shiny)
 library(plotly)
@@ -14,7 +14,8 @@ shinyUI(
 	fluidPage(
 		theme = "cosmo.css",
 		navbarPage(
-			title="Extreme Value Explorer",
+			title = "Extreme Value Explorer",
+			id = "navbar-pages",
 			tabPanel("Data Upload",
 				fluidRow(
 					column(3,
@@ -167,7 +168,7 @@ shinyUI(
 			), # End of Relative Frequency tab
 			tabPanel("Probability Model",
 				h1("Probability Model"),
-				tabsetPanel(type = "tabs",
+				tabsetPanel(type = "tabs", id = "model-tabs",
 					tabPanel("Two-parameter Gumbel Model",
 						h2("Two-parameter Gumbel Model"),
 						div(
