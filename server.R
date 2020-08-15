@@ -13,7 +13,7 @@ library(plotly)
 library(tidyr)
 
 shinyServer(
-	function(input, output) {
+	function(input, output, session) {
 
 		#' Uploaded data from the user.
 		#' @return: Numeric vector of numeric values. NULL if no file provided.
@@ -85,6 +85,23 @@ shinyServer(
 					"How extreme could it get?"  # Default text if nothing else matches
 				)
 			)
+		})
+
+		observe({
+			req(dataset())
+			label <- paste("Choose a", input$dataType,
+			               "to find the probability of exceeding it every",
+			               input$dataTimeframe)
+			sliderRange <- range(relFrequencyPlotData()$x)
+			min <- max(0, sliderRange[1] - 2)
+      max <- max(0, sliderRange[2] + 3)
+      value <- round(runif(1, sliderRange[1], sliderRange[2]), 1)
+			updateSliderInput(session, "RFProbabilityInput", label, value, min, max)
+			updateSliderInput(session, "gumbelProbabilityInput", label, value, min, max)
+			updateSliderInput(session, "GEVProbabilityInput", label, value, min, max)
+			updateSliderInput(session, "normalProbabilityInput", label, value, min, max)
+			updateSliderInput(session, "expProbabilityInput", label, value, min, max)
+			updateSliderInput(session, "gammaProbabilityInput", label, value, min, max)
 		})
 
 		output$dataUnit <- renderText(input$dataUnits)
@@ -385,28 +402,6 @@ shinyServer(
 		})
 		outputOptions(output, "gumbelPlot", priority = -2)
 
-		# Find a probability: input slider
-		output$gumbelProbabilitySlider <- renderUI({
-			validate(need(input$dataIn, ""))
-			sliderRange <- range(relFrequencyPlotData()[, 1])
-			return(
-				sliderInput("gumbelProbabilityInput",
-					label = paste(
-						"Choose a",
-						input$dataType,
-						"to find the probability of exceeding it every",
-						input$dataTimeframe
-					),
-					min = max(0, sliderRange[1] - 2),
-					max = max(0, sliderRange[2] + 3),
-					value = round(runif(1, sliderRange[1], sliderRange[2]), 1),
-					step = 0.05
-				)
-			)
-		})
-		outputOptions(
-			output, "gumbelProbabilitySlider", priority = -2, suspendWhenHidden = TRUE
-		)
 		# Find a probability: text description
 		output$gumbelProbabilityDescription <- renderUI({
 			return(
@@ -557,27 +552,6 @@ shinyServer(
 		})
 		outputOptions(output, "GEVPlot", priority = -2)
 
-		# Find a probability: input slider
-		output$GEVProbabilitySlider <- renderUI({
-			validate(need(input$dataIn, ""))
-			sliderRange <- range(relFrequencyPlotData()[, 1])
-			return(
-				sliderInput("GEVProbabilityInput",
-					label = paste(
-						"Choose a",
-						input$dataType,
-						"to find the probability of exceeding it every",
-						input$dataTimeframe
-					),
-					min = max(0, sliderRange[1] - 2),
-					max = max(0, sliderRange[2] + 3),
-					value = round(runif(1, sliderRange[1], sliderRange[2]), 1),
-					step = 0.05
-				)
-			)
-		})
-		outputOptions(output, "GEVProbabilitySlider", priority = -2)
-
 		# Find a probability: text description
 		output$GEVProbabilityDescription <- renderUI({
 			return(
@@ -717,28 +691,6 @@ shinyServer(
 		})
 		outputOptions(output, "normalPlot", priority = -2)
 
-		# Find a probability: input slider
-		output$normalProbabilitySlider <- renderUI({
-			validate(need(input$dataIn, ""))
-			sliderRange <- range(relFrequencyPlotData()[, 1])
-			return(
-				sliderInput(
-					"normalProbabilityInput",
-					label = paste(
-						"Choose a",
-						input$dataType,
-						"to find the probability of exceeding it every",
-						input$dataTimeframe
-					),
-					min = max(0, sliderRange[1] - 2),
-					max = max(0, sliderRange[2] + 3),
-					value = round(runif(1, sliderRange[1], sliderRange[2]), 1),
-					step = 0.05
-				)
-			)
-		})
-		outputOptions(output, "normalProbabilitySlider", priority = -2)
-
 		# Find a probability: text description
 		output$normalProbabilityDescription <- renderUI({
 			return(
@@ -839,28 +791,6 @@ shinyServer(
 							layout(yaxis = list(title = "Probability")))
 		})
 		outputOptions(output, "expPlot", priority = -2)
-
-		# Find a probability: input slider
-		output$expProbabilitySlider <- renderUI({
-			validate(need(input$dataIn, ""))
-			sliderRange <- range(relFrequencyPlotData()[, 1])
-			return(
-				sliderInput(
-					"expProbabilityInput",
-					label = paste(
-						"Choose a",
-						input$dataType,
-						"to find the probability of exceeding it every",
-						input$dataTimeframe
-					),
-					min = max(0, sliderRange[1] - 2),
-					max = max(0, sliderRange[2] + 3),
-					value = round(runif(1, sliderRange[1], sliderRange[2]), 1),
-					step = 0.05
-				)
-			)
-		})
-		outputOptions(output, "expProbabilitySlider", priority = -2)
 
 		# Find a probability: text description
 		output$expProbabilityDescription <- renderUI({
@@ -992,26 +922,6 @@ shinyServer(
 							layout(yaxis = list(title = "Probability")))
 		})
 		outputOptions(output, "gammaPlot", priority = -2)
-
-		# Find a probability: input slider
-		output$gammaProbabilitySlider <- renderUI({
-			sliderRange <- range(relFrequencyPlotData()[, 1])
-			return(
-				sliderInput("gammaProbabilityInput",
-					label = paste(
-						"Choose a",
-						input$dataType,
-						"to find the probability of exceeding it every",
-						input$dataTimeframe
-					),
-					min = max(0, sliderRange[1] - 2),
-					max = max(0, sliderRange[2] + 3),
-					value = round(runif(1, sliderRange[1], sliderRange[2]), 1),
-					step = 0.05
-				)
-			)
-		})
-		outputOptions(output, "gammaProbabilitySlider", priority = -2)
 
 		# Find a probability: text description
 		output$gammaProbabilityDescription <- renderUI({

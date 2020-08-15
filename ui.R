@@ -127,7 +127,11 @@ shinyUI(
 								class = "panel-heading"
 							),
 							div(
-								wellPanel(uiOutput("RFProbabilitySlider")),
+								wellPanel(
+									sliderInput("RFProbabilityInput",
+									            label = "Upload data to begin",
+									            min = 0, max = 1, value = 0, step = 0.05)
+								),
 								uiOutput("RFProbabilityDescription"),
 								class = "panel-body"
 							),
@@ -211,7 +215,11 @@ shinyUI(
 										class = "panel-heading"
 									),
 									div(
-										wellPanel(uiOutput("gumbelProbabilitySlider")),
+										wellPanel(
+											sliderInput("gumbelProbabilityInput",
+											            label = "Upload data to begin",
+											            min = 0, max = 1, value = 0, step = 0.05)
+										),
 										uiOutput("gumbelProbabilityDescription"),
 										class = "panel-body"
 									),
@@ -300,7 +308,11 @@ shinyUI(
                     class = "panel-heading"
                   ),
                   div(
-                    wellPanel(uiOutput("GEVProbabilitySlider")),
+                    wellPanel(
+											sliderInput("GEVProbabilityInput",
+											            label = "Upload data to begin",
+											            min = 0, max = 1, value = 0, step = 0.05)
+										),
                     uiOutput("GEVProbabilityDescription"),
                     class = "panel-body"
                   ),
@@ -392,7 +404,11 @@ shinyUI(
 										class = "panel-heading"
 									),
 									div(
-										wellPanel(uiOutput("normalProbabilitySlider")),
+										wellPanel(
+											sliderInput("normalProbabilityInput",
+											            label = "Upload data to begin",
+											            min = 0, max = 1, value = 0, step = 0.05)
+										),
 										uiOutput("normalProbabilityDescription"),
 										class = "panel-body"
 									),
@@ -477,7 +493,11 @@ shinyUI(
 										class = "panel-heading"
 									),
 									div(
-										wellPanel(uiOutput("expProbabilitySlider")),
+										wellPanel(
+											sliderInput("expProbabilityInput",
+											            label = "Upload data to begin",
+											            min = 0, max = 1, value = 0, step = 0.05)
+										),
 										uiOutput("expProbabilityDescription"),
 										class = "panel-body"
 									),
@@ -569,7 +589,11 @@ shinyUI(
 									class = "panel-heading"
 								),
 								div(
-									wellPanel(uiOutput("gammaProbabilitySlider")),
+									wellPanel(
+										sliderInput("gammaProbabilityInput",
+										            label = "Upload data to begin",
+										            min = 0, max = 1, value = 0, step = 0.05)
+									),
 									uiOutput("gammaProbabilityDescription"),
 									class = "panel-body"
 								),
