@@ -290,7 +290,7 @@ shinyServer(
 			return(-loglik)
 		}
 
-		dgumbel <- function(x, mu, sigma) {
+		pegumbel <- function(x, mu, sigma) {
 			return(1 - exp(-exp(-((x - mu) / sigma))))
 		}
 
@@ -316,7 +316,7 @@ shinyServer(
 		gumbelTable <- reactive({
 			x <- relFreqTable()$x
 			prExceedX <- sapply(x,
-                          dgumbel,
+                          pegumbel,
 													mu = gumbelParameters()[1],
 													sigma = gumbelParameters()[2])
 			return(data.frame(x = x,
@@ -336,7 +336,7 @@ shinyServer(
                to = max(gumbelTable()$x),
 							 by = 0.01)
 		  p <- sapply(x,
-                  dgumbel,
+                  pegumbel,
 									mu = gumbelParameters()[1],
 									sigma = gumbelParameters()[2])
 			d <- tibble(x = x, Probability = p)
@@ -393,9 +393,9 @@ shinyServer(
 							input$dataTimeframe, #4
 							gumbelParameters()[1], #5
 							gumbelParameters()[2], #6
-							dgumbel(input$gumbelProbabilityInput,
-								      gumbelParameters()[1],
-											gumbelParameters()[2]) #7
+							pegumbel(input$gumbelProbabilityInput,
+								       gumbelParameters()[1],
+											 gumbelParameters()[2]) #7
 						)
 					)
 				)
@@ -436,53 +436,43 @@ shinyServer(
 		normalParameterSD <- reactive({return(sd(dataset()))})
 
 		output$normalTablePreamble <- renderUI({
-			validate(
-				need(
-					input$dataIn, "Please upload a dataset to see more information!"
-				)
-			)
 			withMathJax(
-				paste0(
-					"For the data you provided, we have found that \\(\\mu=",
-					round(normalParameterMean(), 3),
-					"\\) and \\(\\sigma=",
-					round(normalParameterSD(), 3),
-					"\\) (Both values given to 3 decimal places)."
+				sprintf(
+					"For the data you provided, we have found that \\(\\mu=%0.3f\\)
+					and \\(\\sigma=%0.3f\\) (Both values given to 3 decimal places).",
+					normalParameterMean(),
+					normalParameterSD()
 				)
 			)
 		})
 
 		# Create data table of cumulative counts and probabilities
-		makeNormalTable <- function (d) {
-			norm <- data.frame(x = relFreqTable()$x)
-			norm$`Probability of exceeding x` <- 1 - pnorm(norm$x, normalParameterMean(), normalParameterSD())
-			return(norm)
-		}
-		normalTable <- reactive({makeNormalTable(dataset())})
-		output$normalTable <- renderTable({
-			validate(need(input$dataIn, ""))
-			return(normalTable())
-		}, include.rownames = FALSE)
-		outputOptions(
-			output, "normalTable", priority = -2, suspendWhenHidden = FALSE
-		)
-
-		# Create the plot
-		output$normalPlot <- renderPlot({
-			validate(need(input$dataIn, ""))
-			return(
-				ggplot(data.frame(x=range(relFrequencyPlotData()[, 1])), aes(x)) +
-				stat_function(
-					fun = function(x) {
-						return(1 - pnorm(x, normalParameterMean(), normalParameterSD()))
-					}
-				) +
-				scale_x_continuous(paste0(input$dataType, " (", input$dataUnits, ")")) +
-				scale_y_continuous("Probability density") +
-				theme_bw()
-			)
+		normalTable <- reactive({
+			x <- relFreqTable()$x
+			prExceedX <- 1 - pnorm(x, normalParameterMean(), normalParameterSD())
+			return(data.frame(x = x,
+			                  `Probability of exceeding x` = prExceedX,
+											  check.names = FALSE))
 		})
-		outputOptions(output, "normalPlot", priority = -2, suspendWhenHidden = FALSE)
+
+		output$normalTable <- renderTable({normalTable()}, include.rownames = FALSE)
+		outputOptions(output, "normalTable", priority = -2)
+
+		# Create a gumbel plot
+		output$normalPlot <- renderPlotly({
+			x <- seq(from = min(normalTable()$x),
+               to = max(normalTable()$x),
+							 by = 0.01)
+		  p <- 1 - pnorm(x, normalParameterMean(), normalParameterSD())
+			d <- tibble(x = x, Probability = p)
+			return(plot_ly(d, x = ~x, y = ~Probability) %>%
+							add_lines(line = list(shape = "spline"),
+							          name = "Probability",
+							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
+																			         input$dataUnits,
+																			         ") = %{y:.4f}")))
+		})
+		outputOptions(output, "normalPlot", priority = -2)
 
 		# Find a probability: input slider
 		output$normalProbabilitySlider <- renderUI({
@@ -491,10 +481,10 @@ shinyServer(
 			return(
 				sliderInput(
 					"normalProbabilityInput",
-					label = h4(
-						"Choose a ",
+					label = paste(
+						"Choose a",
 						input$dataType,
-						" to find the probability of exceeding it every ",
+						"to find the probability of exceeding it every",
 						input$dataTimeframe
 					),
 					min = max(0, sliderRange[1] - 2),
@@ -504,39 +494,34 @@ shinyServer(
 				)
 			)
 		})
-		outputOptions(
-			output, "normalProbabilitySlider", priority = -2, suspendWhenHidden = TRUE
-		)
+		outputOptions(output, "normalProbabilitySlider", priority = -2)
+
 		# Find a probability: text description
 		output$normalProbabilityDescription <- renderUI({
-			validate(need(input$normalProbabilityInput, ""))
 			return(
 				withMathJax(
 					p(
-						paste0(
-							"The probability of observing a ",
-							tolower(input$dataType),
-							" greater than \\(x=",
-							input$normalProbabilityInput,
-							"\\) ",
-							input$dataUnits,
-							" every ", input$dataTimeframe," is given by $$\\mathrm{Pr}(X>",
-							input$normalProbabilityInput,
-							")=1-\\Phi\\left(\\frac{",
-								input$normalProbabilityInput, "-", round(normalParameterMean(), 3),
-							"}{",
-								round(normalParameterSD(), 3),
-							"}\\right)=",
-							signif(1 - pnorm(input$normalProbabilityInput, normalParameterMean(), normalParameterSD()), 4),
-							"\\text{ (to 4 significant figures).}$$"
+						sprintf(
+							"The probability of observing a %1$s greater than
+							\\(x=%2$0.2f\\) %3$s every %4$s is given by
+							$$\\mathrm{Pr}(X>%2$0.2f)=
+								1-\\Phi\\left(\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}\\right)
+								=%7$0.4f\\text{ (to 4 significant figures).}$$",
+							tolower(input$dataType), #1
+							input$normalProbabilityInput, #2
+							input$dataUnits, #3
+							input$dataTimeframe, #4
+							normalParameterMean(), #5
+							normalParameterSD(), #6
+							1 - pnorm(input$normalProbabilityInput,
+								        normalParameterMean(),
+												normalParameterSD()) #7
 						)
 					)
 				)
 			)
 		})
-		outputOptions(output,
-			"normalProbabilityDescription", priority = -3, suspendWhenHidden = TRUE
-		)
+		outputOptions(output, "normalProbabilityDescription", priority = -3)
 
 		# Find a wall height
 		output$normalWallHeightInput <- renderText({
@@ -548,26 +533,17 @@ shinyServer(
 			)
 		})
 		output$normalWallHeightCalculation <- renderUI({
-			validate(
-				need(
-					input$dataIn,
-					"This calculation is unavailable as no data has been uploaded!"
-				)
-			)
 			return(
 				withMathJax(
-					paste0(
-						"$$x=",
-						round(normalParameterSD(), 3),
-						"\\times\\Phi^{-1}\\left(\\frac{1}{",
-						input$normalWallHeightInput,
-						"}\\right)+",
-						round(normalParameterMean(), 3),
-						"=",
-						round(qnorm(1 - (1 / input$normalWallHeightInput), normalParameterMean(), normalParameterSD()), 2),
-						"\\text{ ",
-						input$dataUnits,
-						" (to 2 decimal places).}$$"
+					sprintf(
+						"$$x=%2$0.3f\\times
+						\\Phi^{-1}\\left(\\frac{1}{%3$0.2f}\\right)+%1$0.3f=
+						%4$0.2f\\text{ %5$s (to 2 decimal places).}$$",
+						normalParameterMean(), #1
+						normalParameterSD(), #2
+						input$gumbelWallHeightInput, #3
+						qnorm(1 - (1 / input$normalWallHeightInput), normalParameterMean(), normalParameterSD()), #4
+						input$dataUnits #5
 					)
 				)
 			)
@@ -575,22 +551,63 @@ shinyServer(
 
 		######### Comparison page ###########
 		# Create data table of cumulative counts and probabilities
-		makeComparisonTable <- function () {
+		comparisonTable <- reactive({
 			comp <- relFreqTable()
-			names(comp)[3] <- "Rel. freq. probability of exceeding x"
-			comp$`Gumbel probability of exceeding x` <- gumbelTable()[, 2]
-			comp$`Normal probability of exceeding x` <- normalTable()[, 2]
+			names(comp)[3] <- "Relative Frequency"
+			comp$Gumbel <- gumbelTable()[, 2]
+			comp$Normal <- normalTable()[, 2]
 			return(comp)
-		}
-		comparisonTable <- reactive({makeComparisonTable()})
+		})
 		output$comparisonTable <- renderTable({
-			validate(need(input$dataIn, "Please upload a dataset to see more information!"))
-			return(comparisonTable())
-		}, include.rownames = FALSE)
+				tbl <- comparisonTable()
+				colnames(tbl)[-(1:2)] <- c("Rel. freq. probability of exceeding x",
+			                           "Gumbel probability of exceeding x",
+			                           "Normal probability of exceeding x")
+				return(tbl)
+			},
+			include.rownames = FALSE
+		)
 		outputOptions(output, "comparisonTable", priority = -3)
 
 		# Create the plot
-		output$comparisonPlot <- renderPlot({
+		allPlotData <- reactive({
+			x <- seq(from = min(relFreqTable()$x),
+               to = max(relFreqTable()$x),
+							 by = 0.01)
+			d <- tibble(
+				x = x,
+			  Gumbel = pegumbel(x, gumbelParameters()[1], gumbelParameters()[2]),
+				Normal = 1 - pnorm(x, normalParameterMean(), normalParameterSD())
+			)
+			d2 <- gather(d, "Gumbel", "Normal", key = "Model", value = "Probability")
+			cat(str(d))
+			cat("\n")
+			cat(str(d2))
+			return(d2)
+		})
+
+		output$comparisonPlot <- renderPlotly({
+			plot_ly(allPlotData(), x = ~x, y = ~Probability) %>%
+				add_lines(line = list(shape = "spline"),
+				          color = ~Model,
+									name = ~Model,
+									hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
+																				 input$dataUnits,
+																				 ") = %{y:.4f}")) %>%
+			  add_lines(line = list(shape = "hv"),
+									data = relFrequencyPlotData(),
+									name = "Relative frequency",
+									hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
+																				 input$dataUnits,
+																				 ") = %{y:.4f}")) %>%
+				add_markers(data = relFrequencyPlotData2(),
+				            y = ~Zeros,
+			              name = "Observations",
+									  hovertemplate = paste("%{x:.2f}", input$dataUnits)) %>%
+				layout(hovermode = "x unified")
+		})
+
+		output$comparisonPlot2 <- renderPlot({
 			validate(need(input$dataIn, "Please upload a dataset to see this plot!"))
 			return(
 				ggplot(data.frame(x=range(relFrequencyPlotData()[, 1])), aes(x)) +

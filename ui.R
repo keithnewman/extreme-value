@@ -268,7 +268,7 @@ shinyUI(
 							),
 							column(8,
 								h3("Plot of probabilities"),
-								plotOutput("normalPlot", height=500)
+								plotlyOutput("normalPlot", height=500)
 							)
 						),
 						fluidRow(
@@ -325,13 +325,7 @@ shinyUI(
 					),
 					column(12,
 						h3("Plot of probabilities"),
-						plotOutput("comparisonPlot", height = 600),
-						tags$ul(
-							tags$li("Observed values are represented as black crosses"),
-							tags$li("Relative frequency in Gray"),
-							tags$li("Gumbel model in Red"),
-							tags$li("Normal model in Blue")
-						)
+						plotlyOutput("comparisonPlot")
 					)
 				)
 			) # End of Comparison tab
