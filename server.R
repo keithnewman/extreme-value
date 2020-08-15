@@ -6,7 +6,7 @@
 #'
 #' @author: Keith Newman
 #' @contact: knewma@hotmail.com
-#' @version: 1.1.0
+#' @version: 1.2.0
 
 library(shiny)
 library(plotly)
