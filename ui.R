@@ -89,6 +89,8 @@ shinyUI(
 				),
 				fluidRow(
 					column(12,
+						h3("Summary Table (", textOutput("dataUnit",,T),")"),
+						tableOutput("SummaryTable"),
 						h3("Exploratory plots"),
 						plotlyOutput("exploratoryPlots")
 					)
@@ -166,12 +168,17 @@ shinyUI(
 						h2("Two-parameter Gumbel Model"),
 						div(
 							div(
-								h3("How probability is calculated using a probability model", class = "panel-title"),
+								h3("How probability is calculated using a probability model:",
+									 class = "panel-title"),
 								class = "panel-heading"
 							),
 							div(
 								withMathJax(
-									p("The probability of a", textOutput("dataTypeTPGM",,T), "exceeding a threshold \\(x\\) is given by the formula,$$\\mathrm{Pr}(X>x)=1-\\exp\\left[-\\exp\\left\\{-\\left(\\frac{x-\\mu}{\\sigma}\\right)\\right\\}\\right]\\text{,}$$where:"),
+									p("The probability of a",
+										textOutput("dataTypeTPGM", inline = T),
+										"exceeding a threshold \\(x\\) is given by the formula,
+										$$\\mathrm{Pr}(X>x)=1-\\exp\\left[-\\exp\\left\\{-\\left(\\frac{x-\\mu}{\\sigma}\\right)\\right\\}\\right]\\text{,}$$
+										where:"),
 									tags$ul(
 										tags$li("\\(\\mu\\) is the ", em("location"), " parameter,"),
 										tags$li("\\(\\sigma\\) is the ", em("scale"), " parameter,"),
@@ -180,6 +187,7 @@ shinyUI(
 										tags$li("\\(\\exp\\) is the ", em("exponential function"), ".")
 									)
 								),
+								checkboxInput("standardErrorGumbel", "Include Standard Errors", FALSE),
 								uiOutput("gumbelTablePreamble"),
 								class = "panel-body"
 							),
@@ -187,12 +195,12 @@ shinyUI(
 						),
 						fluidRow(
 							column(4,
-								h3("Table of probabilities"),
-								tableOutput("gumbelTable")
+										 h3("Table of probabilities"),
+										 tableOutput("gumbelTable")
 							),
 							column(8,
-								h3("Plot of probabilities"),
-								plotlyOutput("gumbelPlot")
+										 h3("Plot of probabilities"),
+										 plotlyOutput("gumbelPlot")
 							)
 						),
 						fluidRow(
@@ -219,16 +227,25 @@ shinyUI(
 									div(
 										wellPanel(
 											sliderInput("gumbelWallHeightInput",
-												label = list(
-													h4("Choose how rare the event should be."),
-													uiOutput("howExtremeSliderLabel2")
-												), min = 2, max = 1000, value = 100
-											)
+																	label = list(
+																		h4("Choose how rare the event should be:"),
+																		uiOutput("howExtremeSliderLabel2")
+																	),
+																	min = 2,
+																	max = 1000,
+																	value = 100)
 										),
-										p("A once in a ",textOutput("gumbelWallHeightInput",,T)," event corresponds to an exceedance probability ",htmlOutput("gumbelWallHeightP",T), " (to 4 significant figures)."),
+										p("A once in a ",
+											textOutput("gumbelWallHeightInput", inline = TRUE),
+											" event corresponds to an exceedance probability ",
+											htmlOutput("gumbelWallHeightP", TRUE),
+											" (to 4 significant figures)."),
 										withMathJax(
 											textOutput("howExtremeAnswerPreamble2"),
-											uiOutput("gumbelWallHeightCalculation",T)
+											uiOutput("gumbelWallHeightCalculation", TRUE),
+											checkboxInput("standardErrorGumbelWall",
+																		"Include Standard Error",
+																		FALSE)
 										),
 										class = "panel-body"
 									),
@@ -237,8 +254,97 @@ shinyUI(
 							)
 						)
 					),
-					tabPanel("Normal Distribution",
-						h2("Normal Distribution"),
+					tabPanel("Generalised Extreme Value Model",
+		        h2("Generalised Extreme Value Model"),
+		        div(
+		        	div(
+		            h3("How probability is calculated using a probability model", class = "panel-title"),
+		            class = "panel-heading"
+		          ),
+		          div(
+		            withMathJax(
+		              p("The probability of a",
+										textOutput("dataTypeGEV", , T), "exceeding a threshold \\(x\\) is given by the formula,
+									  $$\\mathrm{Pr}(X>x)=1-\\exp\\left\\{-\\left[1+\\xi\\left(\\frac{x-\\mu}{\\sigma}\\right)\\right]^{-\\frac{1}{\\xi}}\\right\\}\\text{,}$$
+										where:"),
+		              tags$ul(
+		              	tags$li("\\(\\mu\\) is the ", em("location"), " parameter,"),
+		              	tags$li("\\(\\sigma\\) is the ", em("scale"), " parameter,"),
+		              	tags$li("\\(\\xi\\) is the ", em("shape"), " parameter,"),
+		              	tags$li("\\(X\\) is our ", em("random variable"), ","),
+		              	tags$li("\\(x\\) is the ", em("value"), " of our random variable,"),
+		              	tags$li("\\(\\exp\\) is the ", em("exponential function"), ".")
+		              )
+		            ),
+                checkboxInput("standardErrorGEV",
+															"Include Standard Errors",
+															FALSE),
+  	            uiOutput("GEVTablePreamble"),
+		            class = "panel-body"
+		          ),
+		          class = "panel panel-info"
+		        ),
+		        fluidRow(
+		          column(4,
+                		 h3("Table of probabilities"),
+                		 tableOutput("GEVTable")),
+		          column(8,
+                  	 h3("Plot of probabilities"),
+                  	 plotlyOutput("GEVPlot"))
+		        ),
+		        fluidRow(
+		          column(6,
+              	div(
+                  div(
+                    h3("Calculate a probability from this model", class = "panel-primary"),
+                    class = "panel-heading"
+                  ),
+                  div(
+                    wellPanel(uiOutput("GEVProbabilitySlider")),
+                    uiOutput("GEVProbabilityDescription"),
+                    class = "panel-body"
+                  ),
+                  class = "panel panel-primary"
+                )
+		          ),
+		          column(6,
+                div(
+                  div(
+                    h3(textOutput("howExtremeText3"), class = "panel-primary"),
+                    class = "panel-heading"
+                  ),
+                  div(
+                    wellPanel(
+                      sliderInput("GEVWallHeightInput",
+				                          label = list(
+				                            h4("Choose how rare the event should be."),
+				                            uiOutput("howExtremeSliderLabel3")
+				                          ),
+																	min = 2,
+																	max = 1000,
+																	value = 100)
+                    ),
+                    p("A once in a ",
+											textOutput("GEVWallHeightInput", inline = TRUE),
+											" event corresponds to an exceedance probability ",
+											htmlOutput("GEVWallHeightP", TRUE),
+											" (to 4 significant figures)."),
+                    withMathJax(
+                      textOutput("howExtremeAnswerPreamble3"),
+                      uiOutput("GEVWallHeightCalculation", TRUE),
+                      checkboxInput("standardErrorGEVWall",
+																		"Include Standard Error",
+																		FALSE)
+                    ),
+                    class = "panel-body"
+                  ),
+                  class = "panel panel-primary"
+                )
+		          )
+		        )
+					),
+					tabPanel("Normal Model",
+						h2("Normal Model"),
 						div(
 							div(
 								h3("How probability is calculated using a probability model", class = "panel-title"),
@@ -246,7 +352,11 @@ shinyUI(
 							),
 							div(
 								withMathJax(
-									p("The probability of a", textOutput("dataTypeND",,T), "exceeding a threshold \\(x\\) is given by the formula,$$\\mathrm{Pr}(X>x)=1-\\Phi\\left(\\frac{x-\\mu}{\\sigma}\\right)=\\frac{1}{\\sqrt{2\\pi}}\\int_{\\frac{x-\\mu}{\\sigma}}^{\\infty}{\\exp\\left(-\\frac{t^2}{2}\\right)\\mathop{dt}}\\text{,}$$where:"),
+									p("The probability of a",
+										textOutput("dataTypeND", inline = TRUE),
+										"exceeding a threshold \\(x\\) is given by the formula,
+										$$\\mathrm{Pr}(X>x)=1-\\Phi\\left(\\frac{x-\\mu}{\\sigma}\\right)=\\frac{1}{\\sqrt{2\\pi}}\\int_{\\frac{x-\\mu}{\\sigma}}^{\\infty}{\\exp\\left(-\\frac{t^2}{2}\\right)\\mathop{dt}}\\text{,}$$
+										where:"),
 									tags$ul(
 										tags$li("\\(\\mu\\) is the ", em("mean"), " parameter,"),
 										tags$li("\\(\\sigma\\) is the ", em("standard deviation"), " parameter,"),
@@ -256,6 +366,9 @@ shinyUI(
 										tags$li("\\(\\Phi\\) is the ", em("cumulative distribution function"), "of the standard Normal distribution, which can be found in statistical tables.")
 									)
 								),
+								checkboxInput("standardErrorNormal",
+															"Include Standard Errors",
+															FALSE),
 								uiOutput("normalTablePreamble"),
 								class = "panel-body"
 							),
@@ -263,12 +376,12 @@ shinyUI(
 						),
 						fluidRow(
 							column(4,
-								h3("Table of probabilities"),
-								tableOutput("normalTable")
+										 h3("Table of probabilities"),
+										 tableOutput("normalTable")
 							),
 							column(8,
-								h3("Plot of probabilities"),
-								plotlyOutput("normalPlot", height=500)
+										 h3("Plot of probabilities"),
+										 plotlyOutput("normalPlot")
 							)
 						),
 						fluidRow(
@@ -289,23 +402,209 @@ shinyUI(
 							column(6,
 								div(
 									div(
-										h3(textOutput("howExtremeText3"), class = "panel-primary"),
+										h3(textOutput("howExtremeText4"), class = "panel-primary"),
 										class = "panel-heading"
 									),
 									div(
 										wellPanel(
-											sliderInput(
-												"normalWallHeightInput",
-												label = list(
-													h4("Choose how rare the event should be."),
-													uiOutput("howExtremeSliderLabel3")
-												), min = 2, max = 1000, value = 100
-											)
+											sliderInput("normalWallHeightInput",
+																	label = list(
+																		h4("Choose how rare the event should be."),
+																		uiOutput("howExtremeSliderLabel4")
+																	),
+																	min = 2,
+																	max = 1000,
+																	value = 100)
 										),
-										p("A once in a ",textOutput("normalWallHeightInput",,T)," event corresponds to an exceedance probability ",htmlOutput("normalWallHeightP",T), " (to 4 significant figures)."),
+										p("A once in a ",
+											textOutput("normalWallHeightInput", inline = TRUE),
+											" event corresponds to an exceedance probability ",
+											htmlOutput("normalWallHeightP", TRUE),
+											" (to 4 significant figures)."),
 										withMathJax(
-											textOutput("howExtremeAnswerPreamble3"),
-											uiOutput("normalWallHeightCalculation",T)
+											textOutput("howExtremeAnswerPreamble4"),
+											uiOutput("normalWallHeightCalculation", TRUE)
+										),
+										class = "panel-body"
+									),
+									class = "panel panel-primary"
+								)
+							)
+						)
+					),
+					tabPanel("Exponential Model",
+						h2("Exponential Model"),
+						div(
+							div(
+								h3("How probability is calculated using a probability model", class = "panel-title"),
+								class = "panel-heading"
+							),
+							div(
+								withMathJax(
+									p("The probability of a",
+										textOutput("dataTypeExp", inline = TRUE),
+										"exceeding a threshold \\(x\\) is given by the formula,
+										$$\\mathrm{Pr}(X>x)=\\exp\\{-\\lambda x\\}\\text{,}$$
+										where:"),
+									tags$ul(
+										tags$li("\\(\\lambda\\) is the ", em("rate"), " parameter,"),
+										tags$li("\\(X\\) is our ", em("random variable"), ","),
+										tags$li("\\(x\\) is the ", em("value"), " of our random variable,"),
+										tags$li("\\(\\exp\\) is the ", em("exponential function"), ",")
+									)
+								),
+								checkboxInput("standardErrorExp",
+															"Include Standard Error",
+															FALSE),
+								uiOutput("expTablePreamble"),
+								class = "panel-body"
+							),
+						 class = "panel panel-info"
+						),
+						fluidRow(
+							column(4,
+										 h3("Table of probabilities"),
+										 tableOutput("expTable")),
+							column(8,
+										 h3("Plot of probabilities"),
+										 plotlyOutput("expPlot"))
+						),
+						fluidRow(
+							column(6,
+								div(
+									div(
+										h3("Calculate a probability from this model", class = "panel-primary"),
+										class = "panel-heading"
+									),
+									div(
+										wellPanel(uiOutput("expProbabilitySlider")),
+										uiOutput("expProbabilityDescription"),
+										class = "panel-body"
+									),
+									class = "panel panel-primary"
+								)
+							),
+							column(6,
+								div(
+									div(
+										h3(textOutput("howExtremeText5"), class = "panel-primary"),
+										class = "panel-heading"
+									),
+									div(
+										wellPanel(
+											sliderInput("expWallHeightInput",
+																	label = list(
+																		h4("Choose how rare the event should be."),
+																		uiOutput("howExtremeSliderLabel5")
+																	),
+																	min = 2,
+																	max = 1000,
+																	value = 100)
+										),
+										p("A once in a ",
+											textOutput("expWallHeightInput", inline = TRUE),
+											" event corresponds to an exceedance probability ",
+											htmlOutput("expWallHeightP", TRUE),
+											" (to 4 significant figures)."),
+										withMathJax(
+											textOutput("howExtremeAnswerPreamble5"),
+											uiOutput("expWallHeightCalculation", TRUE),
+											checkboxInput("standardErrorExpWall",
+																		"Include Standard Error",
+																		FALSE)
+										),
+										class = "panel-body"
+									),
+									class = "panel panel-primary"
+								)
+							)
+						)
+					),
+					tabPanel("Gamma Model",
+						h2("Gamma Model"),
+						div(
+							div(
+								h3("How probability is calculated using a probability model", class = "panel-title"),
+								class = "panel-heading"
+							), # End of panel header
+							div(
+								withMathJax(
+									p("The probability of a",
+										textOutput("dataTypeGM", inline = TRUE),
+										"exceeding a threshold \\(x\\) is given by the formula,
+										$$\\mathrm{Pr}(X>x)=\\frac{\\beta^{\\alpha}}{\\Gamma(\\alpha)}\\int_{x}^{\\infty}{t^{\\alpha-1}\\exp\\left(-\\beta t\\right)\\mathop{dt}}\\text{,}$$
+										where:"
+									),
+									tags$ul(
+										tags$li("\\(\\beta\\) is the ", em("rate"), " parameter,"),
+										tags$li("\\(\\alpha\\) is the ", em("shape"), " parameter,"),
+										tags$li("\\(X\\) is our ", em("random variable"), ","),
+										tags$li("\\(x\\) is the ", em("value"), " of our random variable,"),
+										tags$li("\\(\\exp\\) is the ", em("exponential function"), ".")
+									)
+								),
+								checkboxInput("standardErrorGamma",
+															"Include Standard Errors",
+															FALSE),
+								uiOutput("gammaTablePreamble"),
+								class = "panel-body"
+							), # End of panel body
+							class = "panel panel-info"
+						), # End of panel
+						fluidRow(
+							column(4,
+										 h3("Table of probabilities"),
+										 tableOutput("gammaTable")
+							),
+							column(8,
+										 h3("Plot of probabilities"),
+										 plotlyOutput("gammaPlot")
+							)
+						),
+						fluidRow(
+						 column(6,
+							div(
+								div(
+									h3("Calculate a probability from this model", class = "panel-primary"),
+									class = "panel-heading"
+								),
+								div(
+									wellPanel(uiOutput("gammaProbabilitySlider")),
+									uiOutput("gammaProbabilityDescription"),
+									class = "panel-body"
+								),
+								class = "panel panel-primary"
+							)
+						 ),
+							column(6,
+								div(
+									div(
+										h3(textOutput("howExtremeText6"), class = "panel-primary"),
+										class = "panel-heading"
+									),
+									div(
+										wellPanel(
+											sliderInput("gammaWallHeightInput",
+																	label = list(
+																		h4("Choose how rare the event should be."),
+																		uiOutput("howExtremeSliderLabel6")
+																	),
+																	min = 2,
+																	max = 1000,
+																	value = 100)
+										),
+										p("A once in a ",
+											textOutput("gammaWallHeightInput",,T),
+											" event corresponds to an exceedance probability ",
+											htmlOutput("gammaWallHeightP",T),
+											" (to 4 significant figures)."
+										),
+										withMathJax(
+											textOutput("howExtremeAnswerPreamble6"),
+											uiOutput("gammaWallHeightCalculation",T),
+											withMathJax(
+												p("Where \\(F\\) is the CDF of the Gamma Distribution.")
+											)
 										),
 										class = "panel-body"
 									),

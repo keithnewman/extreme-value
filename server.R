@@ -9,7 +9,6 @@
 #' @version: 1.1.0
 
 library(shiny)
-library(ggplot2)
 library(plotly)
 library(tidyr)
 
@@ -44,6 +43,33 @@ shinyServer(
 			return(tibble(x = dataset()))
 		})
 
+		output$SummaryTable <- renderTable({
+				# Find min, LQ, median, UQ and max in one go
+				summaryQuant <- quantile(dataset())
+
+				Summary <- data.frame(l    = length(dataset()),
+															Mean = mean(dataset()),
+															sd   = sd(dataset()),
+															min  = summaryQuant[1],
+															lq   = summaryQuant[2],
+															med  = summaryQuant[3],
+															uq   = summaryQuant[4],
+															max  = summaryQuant[5])
+
+				colnames(Summary) <- c("Number of Observations",
+															 "Mean",
+															 "Standard Deviation",
+															 "Minimum Observation",
+															 "Lower Quartile",
+															 "Median",
+															 "Upper Quartile",
+															 "Maximum Observation")
+				return(Summary)
+			},
+			include.rownames = FALSE
+		)
+		outputOptions(output, "SummaryTable", priority = -2)
+
 		# Break points needed for plotting histogram and Relative Frequency table
 		dataPrettyBreaks <- reactive({
 			return(pretty(x = dataset(),
@@ -55,21 +81,27 @@ shinyServer(
 		howExtremeTextGenerator <- reactive({
 			return(
 				switch(input$dataType,
-					"Sea-surge height" = "How high should we build a wall?",
+					"Wave height" = "How high should we build a wall?",
 					"How extreme could it get?"  # Default text if nothing else matches
 				)
 			)
 		})
+
+		output$dataUnit <- renderText(input$dataUnits)
 		# Need one of each of these per box in the app
 		output$howExtremeText1 <- renderText({howExtremeTextGenerator()})
 		output$howExtremeText2 <- renderText({howExtremeTextGenerator()})
 		output$howExtremeText3 <- renderText({howExtremeTextGenerator()})
+		output$howExtremeText4 <- renderText({howExtremeTextGenerator()})
+		output$howExtremeText5 <- renderText({howExtremeTextGenerator()})
+		output$howExtremeText6 <- renderText({howExtremeTextGenerator()})
+
 
 		# Label for the input slider
 		howExtremesliderInputLabelGenerator <- reactive({
 			return(
 				switch(input$dataType,
-					"Sea-surge height" = p("How high should we build a wall to protect from a \"once in a ", HTML("&hellip;"), " ", input$dataTimeframe, " storm\"?"),
+					"Wave height" = p("How high should we build a wall to protect from a \"once in a ", HTML("&hellip;"), " ", input$dataTimeframe, " storm\"?"),
 					p("How extreme would we expect the ", input$dataType, " to be \"once every ",HTML("&hellip;")," ", input$dataTimeframe, "\"?")  # Default text if nothing else matches
 				)
 			)
@@ -78,12 +110,15 @@ shinyServer(
 		output$howExtremeSliderLabel1 <- renderUI({howExtremesliderInputLabelGenerator()})
 		output$howExtremeSliderLabel2 <- renderUI({howExtremesliderInputLabelGenerator()})
 		output$howExtremeSliderLabel3 <- renderUI({howExtremesliderInputLabelGenerator()})
+		output$howExtremeSliderLabel4 <- renderUI({howExtremesliderInputLabelGenerator()})
+		output$howExtremeSliderLabel5 <- renderUI({howExtremesliderInputLabelGenerator()})
+		output$howExtremeSliderLabel6 <- renderUI({howExtremesliderInputLabelGenerator()})
 
 		# The sentence before the "how extreme answer is given"
 		howExtremeAnswerPreambleGenerator <- reactive({
 			return(
 				switch(input$dataType,
-					"Sea-surge height" = "The required height \\(x\\) of the wall can be calculated as,",
+					"Wave height" = "The required height \\(x\\) of the wall can be calculated as,",
 					paste0("We would expect to see an extreme ", input$dataType, " \\(x\\) equal to,")  # Default text if nothing else matches
 				)
 			)
@@ -198,14 +233,16 @@ shinyServer(
 			        x = ~x,
 							y = ~Probability) %>%
 				add_lines(line = list(shape = "hv"),
-			            name = "Probability",
+			            name = "Relative frequency",
 								  hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
 									                       input$dataUnits,
 																				 ") = %{y:.4f}")) %>%
 				add_markers(data = relFrequencyPlotData2(),
 				            y = ~Zeros,
 			              name = "Observations",
-									  hovertemplate = paste("%{x:.2f}", input$dataUnits))
+									  hovertemplate = paste("%{x:.2f}", input$dataUnits)) %>%
+				layout(yaxis = list(title = "Probability"),
+				       hovermode = "x unified")
 		})
 		outputOptions(output, "RFplot", priority = -1, suspendWhenHidden = FALSE)
 
@@ -295,19 +332,27 @@ shinyServer(
 		}
 
 		#' Find the maximum likelihood estimates of the Gumbel distribution
-		gumbelParameters <- reactive({
+		gumbelFit <- reactive({
 			#set initial values for the parameter vector theta=c(mu,sigma)
 			theta <- c(mean(dataset()), sd(dataset()))
-			return(nlm(gumbel.loglik, theta)$est)
+			return(nlm(gumbel.loglik, theta, hessian=TRUE))
+		})
+		gumbelParameters <- reactive({gumbelFit()$est})
+		gumbelParametersSE <- reactive({
+			hess <- gumbelFit()$hessian
+			errors <- sqrt(diag(solve(hess)))
+			return(errors)
 		})
 
 		output$gumbelTablePreamble <- renderUI({
 			withMathJax(
 				sprintf(
-					"For the data you provided, we have found that \\(\\mu=%0.3f\\)
-					and \\(\\sigma=%0.3f\\) (Both values given to 3 decimal places).",
+					"For the data you provided, we have found that \\(\\mu=%0.3f%s\\)
+					and \\(\\sigma=%0.3f%s\\) (Both values given to 3 decimal places).",
 					gumbelParameters()[1],
-					gumbelParameters()[2]
+					ifelse(input$standardErrorGumbel, sprintf(" \\left(%0.3f\\right)", gumbelParametersSE()[1]), ""),
+					gumbelParameters()[2],
+					ifelse(input$standardErrorGumbel, sprintf(" \\left(%0.3f\\right)", gumbelParametersSE()[2]), "")
 				)
 			)
 		})
@@ -315,10 +360,9 @@ shinyServer(
 		# Create data table of cumulative counts and probabilities
 		gumbelTable <- reactive({
 			x <- relFreqTable()$x
-			prExceedX <- sapply(x,
-                          pegumbel,
-													mu = gumbelParameters()[1],
-													sigma = gumbelParameters()[2])
+			prExceedX <- pegumbel(x,
+													  mu = gumbelParameters()[1],
+													  sigma = gumbelParameters()[2])
 			return(data.frame(x = x,
 			                  `Probability of exceeding x` = prExceedX,
 											  check.names = FALSE))
@@ -326,26 +370,18 @@ shinyServer(
 		output$gumbelTable <- renderTable({
 			return(gumbelTable())
 		}, include.rownames = FALSE)
-		outputOptions(
-			output, "gumbelTable", priority = -2, suspendWhenHidden = TRUE
-		)
+		outputOptions(output, "gumbelTable", priority = -2)
 
 		# Create a gumbel plot
 		output$gumbelPlot <- renderPlotly({
-			x <- seq(from = min(gumbelTable()$x),
-               to = max(gumbelTable()$x),
-							 by = 0.01)
-		  p <- sapply(x,
-                  pegumbel,
-									mu = gumbelParameters()[1],
-									sigma = gumbelParameters()[2])
-			d <- tibble(x = x, Probability = p)
-			return(plot_ly(d, x = ~x, y = ~Probability) %>%
+			d <- allPlotData()[, c("x", "Gumbel")]
+			return(plot_ly(d, x = ~x, y = ~Gumbel) %>%
 							add_lines(line = list(shape = "spline"),
-							          name = "Probability",
+							          name = "Gumbel",
 							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
 																			         input$dataUnits,
-																			         ") = %{y:.4f}")))
+																			         ") = %{y:.4f}")) %>%
+							layout(yaxis = list(title = "Probability")))
 		})
 		outputOptions(output, "gumbelPlot", priority = -2)
 
@@ -414,19 +450,212 @@ shinyServer(
 				paste0("\\(p=", signif(1 / input$gumbelWallHeightInput, 4), "\\)")
 			)
 		})
+
+		# Return Standard Errors
+		gumbelWallSE <- reactive({
+			hess <- solve(gumbelFit()$hessian)
+			est <- gumbelParameters()
+			del <- matrix(c(1, -log(-log(1 - (1 / input$gumbelWallHeightInput)))),
+			             ncol = 1, nrow = 2)
+			del.transpose = t(del)
+			error = sqrt(del.transpose %*% hess %*% del)
+			return(error)
+		})
+
 		output$gumbelWallHeightCalculation <- renderUI({
-			return(
+			return(withMathJax(
 				sprintf(
-					"$$x=%1$0.3f-%2$0.3f\\log\\left[
-						-\\log\\left(1-\\frac{1}{%3$0.2f}\\right)
-					\\right]=%4$0.2f\\text{ %5$s (to 2 decimal places).}$$",
+					"$$z_{%3$.0f}=%1$0.3f-%2$0.3f\\log\\left[
+						-\\log\\left(1-\\frac{1}{%3$.0f}\\right)
+					\\right]=%4$0.2f%5$s\\text{ %6$s (to 2 decimal places).}$$",
 					gumbelParameters()[1], #1
 					gumbelParameters()[2], #2
 					input$gumbelWallHeightInput, #3
 					gumbelParameters()[1] - gumbelParameters()[2] * log(-log(1 - (1 / input$gumbelWallHeightInput))), #4
-					input$dataUnits #5
+					ifelse(input$standardErrorGumbelWall,
+						     sprintf("\\ (%.0f)", gumbelWallSE()), ""), #5
+					input$dataUnits #6
+				)
+			))
+		})
+
+		### Generalised Extreme Value Model ###
+		output$dataTypeGEV <- renderText({tolower(input$dataType)})
+
+		#' Negative log-likelihood for the GEV model
+		GEV.loglik <- function(theta){
+			mu <- theta[1]
+			sigma <- theta[2]
+			xi <- theta[3]
+			m <- min((1 + (xi * (dataset() - mu) / sigma)))
+			delta <- sqrt(.Machine$double.eps)
+			if (m < delta) return(.Machine$double.xmax)
+			if (sigma < delta) return(.Machine$double.xmax)
+			if(xi == 0) {
+				loglik = -length(dataset()) * log(sigma) - sum((dataset() - mu) / sigma) - sum(exp(-((dataset() - mu) / sigma)))
+			} else {
+				loglik = -length(dataset()) * log(sigma) - (1 / xi + 1) * sum(log(1 + (xi * (dataset() - mu) / sigma))) - sum((1 + (xi * (dataset() - mu) / sigma)) ** (-1 / xi))
+			}
+			return(-loglik)
+		}
+
+		pegev <- function(x, mu, sigma, xi) {
+			return(1 - exp(-(1 + xi * ((x - mu) / sigma)) ^ (-1 / xi)))
+		}
+
+		#' Find the maximum likelihood estimates of the Gumbel distribution
+		gevFit <- reactive({
+			#set initial values for the parameter vector theta=c(mu, sigma, xi)
+			theta <- c(mean(dataset()), sd(dataset()), 0.1)
+			return(nlm(GEV.loglik, theta, hessian=TRUE))
+		})
+		gevParameters <- reactive({gevFit()$est})
+		gevParametersSE <- reactive({
+			hess <- gevFit()$hessian
+			errors <- sqrt(diag(solve(hess)))
+			return(errors)
+		})
+
+		output$GEVTablePreamble <- renderUI({
+			withMathJax(
+				sprintf(
+					"For the data you provided, we have found that \\(\\mu=%0.3f%s\\)
+					\\(\\sigma=%0.3f%s\\) and \\(\\xi=%0.3f%s\\)
+					(All values given to 3 decimal places).",
+					gevParameters()[1],
+					ifelse(input$standardErrorGEV, sprintf(" \\left(%0.3f\\right)", gevParametersSE()[1]), ""),
+					gevParameters()[2],
+					ifelse(input$standardErrorGEV, sprintf(" \\left(%0.3f\\right)", gevParametersSE()[2]), ""),
+					gevParameters()[3],
+					ifelse(input$standardErrorGEV, sprintf(" \\left(%0.3f\\right)", gevParametersSE()[3]), "")
 				)
 			)
+		})
+
+		# Create data table of cumulative counts and probabilities
+		GEVTable <- reactive({
+			x <- relFreqTable()$x
+			prExceedX <- pegev(x,
+				                 gevParameters()[1],
+				                 gevParameters()[2],
+				                 gevParameters()[3])
+			return(data.frame(x = x,
+			                  `Probability of exceeding x` = prExceedX,
+											  check.names = FALSE))
+		})
+		output$GEVTable <- renderTable({GEVTable()}, include.rownames = FALSE)
+		outputOptions(output, "GEVTable", priority = -2)
+
+		# Create a GEV plot
+		output$GEVPlot <- renderPlotly({
+			d <- allPlotData()[, c("x", "GEV")]
+			return(plot_ly(d, x = ~x, y = ~GEV) %>%
+							add_lines(line = list(shape = "spline"),
+							          name = "GEV",
+							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
+																			         input$dataUnits,
+																			         ") = %{y:.4f}")) %>%
+							layout(yaxis = list(title = "Probability")))
+		})
+		outputOptions(output, "GEVPlot", priority = -2)
+
+		# Find a probability: input slider
+		output$GEVProbabilitySlider <- renderUI({
+			validate(need(input$dataIn, ""))
+			sliderRange <- range(relFrequencyPlotData()[, 1])
+			return(
+				sliderInput("GEVProbabilityInput",
+					label = paste(
+						"Choose a",
+						input$dataType,
+						"to find the probability of exceeding it every",
+						input$dataTimeframe
+					),
+					min = max(0, sliderRange[1] - 2),
+					max = max(0, sliderRange[2] + 3),
+					value = round(runif(1, sliderRange[1], sliderRange[2]), 1),
+					step = 0.05
+				)
+			)
+		})
+		outputOptions(output, "GEVProbabilitySlider", priority = -2)
+
+		# Find a probability: text description
+		output$GEVProbabilityDescription <- renderUI({
+			return(
+				withMathJax(
+					p(
+						sprintf(
+							"The probability of observing a %1$s greater than
+							\\(x=%2$0.2f\\) %3$s every %4$s is given by
+							$$\\mathrm{Pr}(X>%2$0.2f)=
+								1-\\exp\\left\\{-\\left[1+%7$0.3f
+									-\\left(
+										\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}
+									\\right)\\right]^{-\\frac{1}{%7$0.3f}}
+								\\right\\}
+								=%8$0.4f\\text{ (to 4 significant figures).}$$",
+							tolower(input$dataType), #1
+							input$GEVProbabilityInput, #2
+							input$dataUnits, #3
+							input$dataTimeframe, #4
+							gevParameters()[1], #5
+							gevParameters()[2], #6
+							gevParameters()[3], #7
+							pegev(input$GEVProbabilityInput,
+								    gevParameters()[1],
+								    gevParameters()[2],
+										gevParameters()[3]) #8
+						)
+					)
+				)
+			)
+		})
+		outputOptions(output, "GEVProbabilityDescription", priority = -3)
+
+		# Find a wall height
+		output$GEVWallHeightInput <- renderText({
+			paste(input$GEVWallHeightInput, input$dataTimeframe)
+		})
+		output$GEVWallHeightP <- renderUI({
+			withMathJax(
+				paste0("\\(p=", signif(1 / input$GEVWallHeightInput, 4), "\\)")
+			)
+		})
+
+		# Return Standard Errors
+		gevWallSE <- reactive({
+			hess <- solve(gevFit()$hessian)
+			est <- gevParameters()
+			y = -log(1 - (1 / input$GEVWallHeightInput))
+			del = matrix(c(1,
+			               -(est[3]^(-1)) * (1 - y^(-est[3])),
+									   (est[2] * est[3]^(-2) * (1 - y^(-est[3]))) -
+										   (est[2] * est[3]^(-1) * y^(-est[3]) * log(y))),
+			             ncol = 1, nrow = 3)
+			del_transpose = t(del)
+			error = sqrt(del_transpose %*% hess %*% del)
+			return(error)
+		})
+
+		output$GEVWallHeightCalculation <- renderUI({
+			return(withMathJax(
+				sprintf(
+					"$$z_{%4$.0f}=%1$0.3f+\\frac{%2$0.3f}{%3$0.3f}
+					\\left\\{
+						\\left[
+							\\log\\left(\\frac{%4$.0f}{%4$.0f-1}\\right)
+						\\right]^{-(%3$0.3f)}-1
+					\\right\\}=%5$0.2f%6$s\\text{ %7$s (to 2 decimal places).}$$",
+					gevParameters()[1], #1
+					gevParameters()[2], #2
+					gevParameters()[3], #3
+					input$gumbelWallHeightInput, #4
+					gevParameters()[1] + ((gevParameters()[2] / gevParameters()[3]) * ((log(input$GEVWallHeightInput / (input$GEVWallHeightInput - 1))) ^ (-gevParameters()[3]) - 1)), #5
+					ifelse(input$standardErrorGEVWall, sprintf(" (%0.2f)", gevWallSE()[1]), ""), #6
+					input$dataUnits #7
+				)
+			))
 		})
 
 		### Normal Distribution ###
@@ -435,13 +664,33 @@ shinyServer(
 		normalParameterMean <- reactive({return(mean(dataset()))})
 		normalParameterSD <- reactive({return(sd(dataset()))})
 
+		normal_loglik <- function(theta) {
+			mu <- theta[1]
+			sigma <- theta[2]
+			return(-sum(dnorm(dataset(), mu, theta, log = TRUE)))
+		}
+
+		normalFit <- reactive({
+			theta <- c(normalParameterMean(), normalParameterSD())
+			return(nlm(normal_loglik, theta, hessian = TRUE))
+		})
+
+		normalParametersSE <- reactive({
+			hess <- normalFit()$hessian
+			return(sqrt(diag(solve(hess))))
+		})
+
 		output$normalTablePreamble <- renderUI({
 			withMathJax(
 				sprintf(
-					"For the data you provided, we have found that \\(\\mu=%0.3f\\)
-					and \\(\\sigma=%0.3f\\) (Both values given to 3 decimal places).",
+					"For the data you provided, we have found that \\(\\mu=%0.3f%s\\)
+					and \\(\\sigma=%0.3f%s\\) (Both values given to 3 decimal places).",
 					normalParameterMean(),
-					normalParameterSD()
+					ifelse(input$standardErrorNormal,
+						     sprintf(" \\left(%0.3f\\right)", normalParametersSE()[1]), ""),
+					normalParameterSD(),
+					ifelse(input$standardErrorNormal,
+					       sprintf(" \\left(%0.3f\\right)", normalParametersSE()[2]), "")
 				)
 			)
 		})
@@ -460,17 +709,14 @@ shinyServer(
 
 		# Create a gumbel plot
 		output$normalPlot <- renderPlotly({
-			x <- seq(from = min(normalTable()$x),
-               to = max(normalTable()$x),
-							 by = 0.01)
-		  p <- 1 - pnorm(x, normalParameterMean(), normalParameterSD())
-			d <- tibble(x = x, Probability = p)
-			return(plot_ly(d, x = ~x, y = ~Probability) %>%
+			d <- allPlotData()[, c("x", "Normal")]
+			return(plot_ly(d, x = ~x, y = ~Normal) %>%
 							add_lines(line = list(shape = "spline"),
-							          name = "Probability",
+							          name = "Normal",
 							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
 																			         input$dataUnits,
-																			         ") = %{y:.4f}")))
+																			         ") = %{y:.4f}")) %>%
+							layout(yaxis = list(title = "Probability")))
 		})
 		outputOptions(output, "normalPlot", priority = -2)
 
@@ -536,8 +782,8 @@ shinyServer(
 			return(
 				withMathJax(
 					sprintf(
-						"$$x=%2$0.3f\\times
-						\\Phi^{-1}\\left(\\frac{1}{%3$0.2f}\\right)+%1$0.3f=
+						"$$z_{%3$.0f}=%2$0.3f\\times
+						\\Phi^{-1}\\left(\\frac{1}{%3$.0f}\\right)+%1$0.3f=
 						%4$0.2f\\text{ %5$s (to 2 decimal places).}$$",
 						normalParameterMean(), #1
 						normalParameterSD(), #2
@@ -549,20 +795,304 @@ shinyServer(
 			)
 		})
 
+		### Exponential Model ###
+		output$dataTypeExp <- renderText({tolower(input$dataType)})
+
+		expParameterMean <- reactive({return(mean(dataset()))})
+		expParameterLambda <- reactive({return(1 / expParameterMean())})
+		expParameterSD <- reactive({return(sd(dataset()))})
+		expParameterSE <- reactive({
+			return(1 / (expParameterMean() * sqrt(dataLength())))
+		})
+
+		output$expTablePreamble <- renderUI({
+			withMathJax(
+				sprintf(
+					"For the data you provided, we have found that \\(\\lambda=%0.3f%s\\)
+					(Given to 3 decimal places).",
+					expParameterLambda(),
+					ifelse(input$standardErrorExp,
+						     sprintf(" \\left(%0.3f\\right)", expParameterSE()),
+								 "")
+				)
+			)
+		})
+
+		# Create data table of cumulative counts and probabilities
+		expTable <- reactive({
+			x <- relFreqTable()$x
+			prExceedX <- 1 - pexp(x, expParameterLambda())
+			return(data.frame(x = x,
+			                  `Probability of exceeding x` = prExceedX,
+											  check.names = FALSE))
+		})
+
+		output$expTable <- renderTable({expTable()}, include.rownames = FALSE)
+		outputOptions(output, "expTable", priority = -2)
+
+		# Create a gumbel plot
+		output$expPlot <- renderPlotly({
+			d <- allPlotData()[, c("x", "Exponential")]
+			return(plot_ly(d, x = ~x, y = ~Exponential) %>%
+							add_lines(line = list(shape = "spline"),
+							          name = "Exponential",
+							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
+																			         input$dataUnits,
+																			         ") = %{y:.4f}")) %>%
+							layout(yaxis = list(title = "Probability")))
+		})
+		outputOptions(output, "expPlot", priority = -2)
+
+		# Find a probability: input slider
+		output$expProbabilitySlider <- renderUI({
+			validate(need(input$dataIn, ""))
+			sliderRange <- range(relFrequencyPlotData()[, 1])
+			return(
+				sliderInput(
+					"expProbabilityInput",
+					label = paste(
+						"Choose a",
+						input$dataType,
+						"to find the probability of exceeding it every",
+						input$dataTimeframe
+					),
+					min = max(0, sliderRange[1] - 2),
+					max = max(0, sliderRange[2] + 3),
+					value = round(runif(1, sliderRange[1], sliderRange[2]), 1),
+					step = 0.05
+				)
+			)
+		})
+		outputOptions(output, "expProbabilitySlider", priority = -2)
+
+		# Find a probability: text description
+		output$expProbabilityDescription <- renderUI({
+			return(
+				withMathJax(
+					p(
+						sprintf(
+							"The probability of observing a %1$s greater than
+							\\(x=%2$0.2f\\) %3$s every %4$s is given by
+							$$\\mathrm{Pr}(X>%2$0.2f)=
+								\\exp(-%5$0.3f\\times{}%2$0.2f)
+								=%6$0.4f\\text{ (to 4 significant figures).}$$",
+							tolower(input$dataType), #1
+							input$expProbabilityInput, #2
+							input$dataUnits, #3
+							input$dataTimeframe, #4
+							expParameterLambda(), #5
+							1 - pexp(input$expProbabilityInput, expParameterLambda()) #6
+						)
+					)
+				)
+			)
+		})
+		outputOptions(output, "expProbabilityDescription", priority = -3)
+
+		# Find a wall height
+		output$expWallHeightInput <- renderText({
+			paste(input$expWallHeightInput, input$dataTimeframe)
+		})
+		output$expWallHeightP <- renderUI({
+			withMathJax(
+				paste0("\\(p=", signif(1 / input$expWallHeightInput, 4), "\\)")
+			)
+		})
+
+		# Return Standard Errors
+		expWallSE <- reactive({
+		  del = -((expParameterMean() ^ 2) * log(input$expWallHeightInput))
+		  hess = (expParameterLambda() ^ 2) / dataLength()
+		  error = sqrt(t(del) %*% hess %*% del)
+		  return(error)
+		})
+
+		output$expWallHeightCalculation <- renderUI({
+			return(
+				withMathJax(
+					sprintf(
+						"$$z_{%2$.0f}=%1$0.3f
+						\\log\\left(%2$.0f\\right)=
+						%3$0.2f%4$s\\text{ %5$s (to 2 decimal places).}$$",
+						expParameterLambda(), #1
+						input$gumbelWallHeightInput, #2
+						expParameterMean() * log(input$expWallHeightInput), #3
+						ifelse(input$standardErrorExpWall,
+							     sprintf(" \\left(%0.2f\\right)", expWallSE()[1]),
+									 ""), #4
+						input$dataUnits #5
+					)
+				)
+			)
+		})
+
+		### Gamma Model ###
+		output$dataTypeGM <- renderText({tolower(input$dataType)})
+
+		#' Negative log-likelihood for the Gamma model
+		gamma.loglik <- function(theta){
+			alpha = theta[1]
+			beta = theta[2]
+
+			delta = sqrt(.Machine$double.eps)
+			if (alpha < delta) return(.Machine$double.xmax)
+			if (beta < delta) return(.Machine$double.xmax)
+			loglik = length(dataset()) * alpha * log(beta) -
+			           length(dataset()) * log(gamma(alpha)) +
+								 (alpha - 1) * sum(log(dataset())) -
+								 beta * length(dataset()) * mean(dataset())
+			return(-loglik)
+		}
+
+		#' Find the maximum likelihood estimates of the Gumbel distribution
+		gammaFit <- reactive({
+			#set initial values for the parameter vector theta = c(alpha, beta)
+			theta <- c(mean(dataset())^2 / sd(dataset())^2,
+			           mean(dataset()) / sd(dataset())^2)
+			return(nlm(gamma.loglik, theta, hessian = TRUE))
+		})
+		gammaParameters <- reactive({gammaFit()$est})
+		gammaParametersSE <- reactive({
+			hess <- gammaFit()$hessian
+			errors <- sqrt(diag(solve(hess)))
+			return(errors)
+		})
+
+		output$gammaTablePreamble <- renderUI({
+			withMathJax(
+				sprintf(
+					"For the data you provided, we have found that \\(\\alpha=%0.3f%s\\)
+					and \\(\\beta=%0.3f%s\\)
+					(Both values given to 3 decimal places).",
+					gammaParameters()[1],
+					ifelse(input$standardErrorGamma, sprintf(" \\left(%0.3f\\right)", gammaParametersSE()[1]), ""),
+					gammaParameters()[2],
+					ifelse(input$standardErrorGamma, sprintf(" \\left(%0.3f\\right)", gammaParametersSE()[2]), "")
+				)
+			)
+		})
+
+		# Create data table of cumulative counts and probabilities
+		gammaTable <- reactive({
+			x <- relFreqTable()$x
+			prExceedX <- 1 - pgamma(x, gammaParameters()[1], gammaParameters()[2])
+			return(data.frame(x = x,
+												`Probability of exceeding x` = prExceedX,
+												check.names = FALSE))
+		})
+		output$gammaTable <- renderTable({gammaTable()}, include.rownames = FALSE)
+		outputOptions(output, "gammaTable", priority = -2)
+
+		# Create a GEV plot
+		output$gammaPlot <- renderPlotly({
+			d <- allPlotData()[, c("x", "Gamma")]
+			return(plot_ly(d, x = ~x, y = ~Gamma) %>%
+							add_lines(line = list(shape = "spline"),
+												name = "Gamma",
+												hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
+																							 input$dataUnits,
+																							 ") = %{y:.4f}")) %>%
+							layout(yaxis = list(title = "Probability")))
+		})
+		outputOptions(output, "gammaPlot", priority = -2)
+
+		# Find a probability: input slider
+		output$gammaProbabilitySlider <- renderUI({
+			sliderRange <- range(relFrequencyPlotData()[, 1])
+			return(
+				sliderInput("gammaProbabilityInput",
+					label = paste(
+						"Choose a",
+						input$dataType,
+						"to find the probability of exceeding it every",
+						input$dataTimeframe
+					),
+					min = max(0, sliderRange[1] - 2),
+					max = max(0, sliderRange[2] + 3),
+					value = round(runif(1, sliderRange[1], sliderRange[2]), 1),
+					step = 0.05
+				)
+			)
+		})
+		outputOptions(output, "gammaProbabilitySlider", priority = -2)
+
+		# Find a probability: text description
+		output$gammaProbabilityDescription <- renderUI({
+			return(
+				withMathJax(
+					p(
+						sprintf(
+							"The probability of observing a %1$s greater than
+							\\(x=%2$0.2f\\) %3$s every %4$s is given by
+							$$\\mathrm{Pr}(X>%2$0.2f)=
+								\\frac{%6$0.3f^{%5$0.3f}}
+								{\\Gamma(%5$0.3f)}
+								\\int_{%2$0.2f}^{\\infty}{t^{%5$0.3f-1}
+								\\exp\\left(-%6$0.3f t\\right)\\mathop{dt}}
+								=%7$0.4f\\text{ (to 4 significant figures).}$$",
+							tolower(input$dataType), #1
+							input$gammaProbabilityInput, #2
+							input$dataUnits, #3
+							input$dataTimeframe, #4
+							gammaParameters()[1], #5
+							gammaParameters()[2], #6
+							1 - pgamma(input$gammaProbabilityInput,
+								         gammaParameters()[1],
+												 gammaParameters()[2]) #7
+						)
+					)
+				)
+			)
+		})
+		outputOptions(output, "gammaProbabilityDescription", priority = -3)
+
+		# Find a wall height
+		output$gammaWallHeightInput <- renderText({
+			paste(input$gammaWallHeightInput, input$dataTimeframe)
+		})
+		output$gammaWallHeightP <- renderUI({
+			withMathJax(
+				paste0("\\(p=", signif(1 / input$gammaWallHeightInput, 4), "\\)")
+			)
+		})
+
+		output$gammaWallHeightCalculation <- renderUI({
+			return(withMathJax(
+				sprintf(
+					"$$z_{%3$.0f}
+					=\\mathrm{F}^{-1}\\left(\\frac{1}{%3$.0f}, %1$0.3f, %2$0.3f\\right)
+					=%4$0.2f\\text{ %5$s (to 2 decimal places).}$$",
+					gammaParameters()[1], #1
+					gammaParameters()[2], #2
+					input$gammaWallHeightInput, #3
+					qgamma(1 - (1 / input$gammaWallHeightInput),
+					       gammaParameters()[1],
+								 gammaParameters()[2]), #4
+					input$dataUnits #5
+				)
+			))
+		})
+
 		######### Comparison page ###########
 		# Create data table of cumulative counts and probabilities
 		comparisonTable <- reactive({
 			comp <- relFreqTable()
 			names(comp)[3] <- "Relative Frequency"
 			comp$Gumbel <- gumbelTable()[, 2]
+			comp$GEV <- GEVTable()[, 2]
 			comp$Normal <- normalTable()[, 2]
+			comp$Exponential <- expTable()[, 2]
+			comp$Gamma <- gammaTable()[, 2]
 			return(comp)
 		})
 		output$comparisonTable <- renderTable({
 				tbl <- comparisonTable()
 				colnames(tbl)[-(1:2)] <- c("Rel. freq. probability of exceeding x",
-			                           "Gumbel probability of exceeding x",
-			                           "Normal probability of exceeding x")
+			                             "Gumbel probability of exceeding x",
+			                             "GEV probability of exceeding x",
+			                             "Normal probability of exceeding x",
+			                             "Exponential probability of exceeding x",
+			                             "Gamma probability of exceeding x")
 				return(tbl)
 			},
 			include.rownames = FALSE
@@ -577,17 +1107,22 @@ shinyServer(
 			d <- tibble(
 				x = x,
 			  Gumbel = pegumbel(x, gumbelParameters()[1], gumbelParameters()[2]),
-				Normal = 1 - pnorm(x, normalParameterMean(), normalParameterSD())
+				GEV = pegev(x, gevParameters()[1], gevParameters()[2], gevParameters()[3]),
+				Normal = 1 - pnorm(x, normalParameterMean(), normalParameterSD()),
+				Exponential = 1 - pexp(x, expParameterLambda()),
+				Gamma = 1 - pgamma(x, gammaParameters()[1], gammaParameters()[2])
 			)
-			d2 <- gather(d, "Gumbel", "Normal", key = "Model", value = "Probability")
-			cat(str(d))
-			cat("\n")
-			cat(str(d2))
-			return(d2)
+			return(d)
+		})
+
+		allGatheredPlotData <- reactive({
+			return(gather(allPlotData(),
+			              "Gumbel", "GEV", "Normal", "Exponential", "Gamma",
+			              key = "Model", value = "Probability"))
 		})
 
 		output$comparisonPlot <- renderPlotly({
-			plot_ly(allPlotData(), x = ~x, y = ~Probability) %>%
+			plot_ly(allGatheredPlotData(), x = ~x, y = ~Probability) %>%
 				add_lines(line = list(shape = "spline"),
 				          color = ~Model,
 									name = ~Model,
@@ -607,36 +1142,6 @@ shinyServer(
 				layout(hovermode = "x unified")
 		})
 
-		output$comparisonPlot2 <- renderPlot({
-			validate(need(input$dataIn, "Please upload a dataset to see this plot!"))
-			return(
-				ggplot(data.frame(x=range(relFrequencyPlotData()[, 1])), aes(x)) +
-				stat_function(  # Gumbel line in red
-					fun = function(x) {
-						return(
-							1-exp(-exp(-((x-gumbelParameters()[1]) / gumbelParameters()[2])))
-						)
-					}, colour = "red"
-				) +
-				stat_function(  # Normal line in blue
-					fun = function(x) {
-						return(1 - pnorm(x, normalParameterMean(), normalParameterSD()))
-					}, col="blue"
-				) +
-				geom_step(  # Relative frequency probability line
-					data = relFrequencyPlotData(), aes(Height, Probability), colour="grey"
-				) +
-				geom_point(  # Observations
-					aes(Height, Probability),
-					data = relFrequencyPlotData2(),
-					size = 5,
-					shape = 4
-				) +
-				scale_x_continuous(paste0(input$dataType, " (", input$dataUnits, ")")) +
-				scale_y_continuous("Probability density") +
-				theme_bw()
-			)
-		})
 		outputOptions(output, "comparisonPlot", priority = -3)
 	}
 )
