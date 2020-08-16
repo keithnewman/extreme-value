@@ -12,6 +12,8 @@ library(shiny)
 library(plotly)
 library(tidyr)
 
+`%then%` <- shiny:::`%OR%`
+
 shinyServer(
 	function(input, output, session) {
 
@@ -80,6 +82,17 @@ shinyServer(
 			)
 		) # End of demo dataset list
 
+		manualData <- eventReactive(
+			eventExpr = c(input$submitManualData, input$clearManualData),
+			valueExpr = {
+				d <- input$manualDataInput
+				# Split by any amount of commas, semi-colon, whitespace and newline
+				dSplit <- na.omit(as.numeric(strsplit(d, "[/,/;/ \n]+")[[1]]))
+				return(dSplit)
+			},
+			ignoreInit = TRUE
+		)
+
 		#' Uploaded data from the user.
 		#' @return: Numeric vector of numeric values. NULL if no file provided.
 		dataset <- reactive({
@@ -98,16 +111,30 @@ shinyServer(
 				validate(need(datafile, "Upload a dataset to begin."))
 				req(datafile)
 
-				d <- as.numeric(unlist(read.table(datafile$datapath,
-				                                  sep = input$sepControl)))
+				return(as.numeric(unlist(read.table(datafile$datapath,
+				                                    sep = input$sepControl))))
 			}
-			return(d)
+			else if (input$dataInputType == "manual") {
+				validate(need(manualData(), "Submit a valid dataset") %then%
+			           need(length(manualData()) > 1, "Enter at least 2 valid values"))
+				# If invalid values were removed, activate the warning.
+				session$sendCustomMessage("dataInputError",
+				                          is.null(attr(manualData(), "na.action")))
+				return(manualData())
+			}
 		})
 		#
 		output$datafile <- renderPrint({dataset()})
 
 		# Length of the Dataset
 		dataLength <- reactive({return(length(dataset()))})
+
+		# Clear the manual text box if the user resets the input.
+		observeEvent(eventExpr = input$clearManualData, ignoreInit = TRUE,
+			handlerExpr = updateTextAreaInput(session,
+				                                "manualDataInput",
+													              value = "")
+		)
 
 		# Sorted version of the input data in ascending order
 		output$datafileSorted <- renderPrint({

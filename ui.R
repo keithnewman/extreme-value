@@ -14,6 +14,19 @@ library(plotly)
 shinyUI(
 	fluidPage(
 		theme = "cosmo.css",
+		singleton(tags$head(
+			HTML('<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/solid.css" integrity="sha384-aj0h5DVQ8jfwc8DA7JiM+Dysv7z+qYrFYZR+Qd/TwnmpDI6UaB3GJRRTdY8jYGS4" crossorigin="anonymous">
+					 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/fontawesome.css" integrity="sha384-WK8BzK0mpgOdhCxq86nInFqSWLzR5UAsNg0MGX9aDaIIrFWQ38dGdhwnNCAoXFxL" crossorigin="anonymous">'),
+			tags$script(HTML(
+				'Shiny.addCustomMessageHandler("dataInputError", function(isOK) {
+					if (isOK) {
+						$("#input-error").addClass("hidden");
+					} else {
+						$("#input-error").removeClass("hidden");
+					}
+				});'
+			))
+		)),
 		navbarPage(
 			title = "Extreme Value Explorer",
 			id = "navbar-pages",
@@ -30,9 +43,7 @@ shinyUI(
 																justified = TRUE,
 																checkIcon = list(
 														      yes = tags$i(class = "fa fa-check-square",
-														                   style = "color: steelblue"),
-														      no = tags$i(class = "fa fa-square-o",
-														                  style = "color: steelblue"))),
+														                   style = "color: white"))),
 							conditionalPanel(condition = 'input.dataInputType == "demo"',
 								h3("Select a demo dataset"),
 								selectInput(inputId = "demoData",
@@ -180,8 +191,11 @@ shinyUI(
 													 "Submit",
 												   class = "btn-primary"),
 							actionButton("clearManualData",
-						               "Reset",
-												   class = "btn-default")
+						               "Clear",
+												   class = "btn-default"),
+						  HTML('<div class="alert alert-warning hidden" role="alert" id="input-error" style="margin-top:1em;">
+										 <p>Warning: Some of the input values were not valid numbers. These have been removed.</p>
+									 </div>'),
 						),
 						h3("Data Preview"),
 						conditionalPanel(condition = 'input.dataInputType == "demo"',
