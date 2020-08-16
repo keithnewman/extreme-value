@@ -12,32 +12,34 @@ library(shiny)
 library(shinyWidgets)
 library(plotly)
 shinyUI(
-	fluidPage(
-		theme = "cerulean.css",
-		singleton(tags$head(
-			HTML('<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/solid.css" integrity="sha384-aj0h5DVQ8jfwc8DA7JiM+Dysv7z+qYrFYZR+Qd/TwnmpDI6UaB3GJRRTdY8jYGS4" crossorigin="anonymous">
-					 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/fontawesome.css" integrity="sha384-WK8BzK0mpgOdhCxq86nInFqSWLzR5UAsNg0MGX9aDaIIrFWQ38dGdhwnNCAoXFxL" crossorigin="anonymous">'),
-			tags$script(HTML(
-				'Shiny.addCustomMessageHandler("dataInputError", function(isOK) {
-					if (isOK) {
-						$("#input-error").addClass("hidden");
-					} else {
-						$("#input-error").removeClass("hidden");
-					}
-				});'
-			))
-		)),
+	# fluidPage(
 		navbarPage(
+			theme = "cerulean.css",
 			title = "Extreme Value Explorer",
 			id = "navbar-pages",
+			collapsible = TRUE,
+			inverse = TRUE,
 			tabPanel("Data Upload",
+				singleton(tags$head(
+					HTML('<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/solid.css" integrity="sha384-aj0h5DVQ8jfwc8DA7JiM+Dysv7z+qYrFYZR+Qd/TwnmpDI6UaB3GJRRTdY8jYGS4" crossorigin="anonymous">
+					<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/fontawesome.css" integrity="sha384-WK8BzK0mpgOdhCxq86nInFqSWLzR5UAsNg0MGX9aDaIIrFWQ38dGdhwnNCAoXFxL" crossorigin="anonymous">'),
+					tags$script(HTML(
+						'Shiny.addCustomMessageHandler("dataInputError", function(isOK) {
+							if (isOK) {
+								$("#input-error").addClass("hidden");
+							} else {
+								$("#input-error").removeClass("hidden");
+							}
+						});'
+					))
+				)),
 				fluidRow(
 					column(3,
 						wellPanel(
 							h2("Data Upload"),
 							radioGroupButtons(inputId = "dataInputType",
 						                    label = "Data input method",
-															  choices = c(`Use demo data` = "demo",
+															  choices = c(`Demo data` = "demo",
 																            `File upload` = "file",
 																					  `Manual entry` = "manual"),
 																justified = TRUE,
@@ -791,5 +793,5 @@ shinyUI(
 				)
 			) # End of Comparison tab
 		) # End of Navbar
-	)
+	# )
 )
