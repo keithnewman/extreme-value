@@ -6,7 +6,7 @@
 #'
 #' @author: Keith Newman
 #' @contact: knewma@hotmail.com
-#' @version: 1.2.1
+#' @version: 1.3.0
 
 library(shiny)
 library(plotly)
@@ -487,9 +487,9 @@ shinyServer(
 			                  `Probability of exceeding x` = prExceedX,
 											  check.names = FALSE))
 		})
-		output$gumbelTable <- renderTable({
-			return(gumbelTable())
-		}, include.rownames = FALSE)
+		output$gumbelTable <- renderTable({return(gumbelTable())},
+		                                  include.rownames = FALSE,
+		                                  digits = 4)
 		outputOptions(output, "gumbelTable", priority = -2)
 
 		# Create a gumbel plot
@@ -639,7 +639,9 @@ shinyServer(
 			                  `Probability of exceeding x` = prExceedX,
 											  check.names = FALSE))
 		})
-		output$GEVTable <- renderTable({GEVTable()}, include.rownames = FALSE)
+		output$GEVTable <- renderTable({GEVTable()},
+		                               include.rownames = FALSE,
+																	 digits = 4)
 		outputOptions(output, "GEVTable", priority = -2)
 
 		# Create a GEV plot
@@ -778,7 +780,9 @@ shinyServer(
 											  check.names = FALSE))
 		})
 
-		output$normalTable <- renderTable({normalTable()}, include.rownames = FALSE)
+		output$normalTable <- renderTable({normalTable()},
+		                                  include.rownames = FALSE,
+																			digits = 4)
 		outputOptions(output, "normalTable", priority = -2)
 
 		# Create a gumbel plot
@@ -879,7 +883,9 @@ shinyServer(
 											  check.names = FALSE))
 		})
 
-		output$expTable <- renderTable({expTable()}, include.rownames = FALSE)
+		output$expTable <- renderTable({expTable()},
+		                               include.rownames = FALSE,
+																	 digits = 4)
 		outputOptions(output, "expTable", priority = -2)
 
 		# Create a gumbel plot
@@ -1010,7 +1016,9 @@ shinyServer(
 												`Probability of exceeding x` = prExceedX,
 												check.names = FALSE))
 		})
-		output$gammaTable <- renderTable({gammaTable()}, include.rownames = FALSE)
+		output$gammaTable <- renderTable({gammaTable()},
+		                                 include.rownames = FALSE,
+																		 digits = 4)
 		outputOptions(output, "gammaTable", priority = -2)
 
 		# Create a GEV plot
@@ -1105,15 +1113,14 @@ shinyServer(
 			                             "Gamma probability of exceeding x")
 				return(tbl)
 			},
-			include.rownames = FALSE
+			include.rownames = FALSE,
+			digits = 4
 		)
 		outputOptions(output, "comparisonTable", priority = -3)
 
 		# Create the plot
 		allPlotData <- reactive({
-			x <- seq(from = min(relFreqTable()$x),
-               to = max(relFreqTable()$x),
-							 by = 0.01)
+			x <- pretty(relFreqTable()$x, n = 200)
 			d <- tibble(
 				x = x,
 			  Gumbel = pegumbel(x, gumbelParameters()[1], gumbelParameters()[2]),

@@ -6,14 +6,14 @@
 #'
 #' @author: Keith Newman
 #' @contact: knewma@hotmail.com
-#' @version: 1.2.1
+#' @version: 1.3.0
 
 library(shiny)
 library(shinyWidgets)
 library(plotly)
 shinyUI(
 	fluidPage(
-		theme = "cosmo.css",
+		theme = "cerulean.css",
 		singleton(tags$head(
 			HTML('<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/solid.css" integrity="sha384-aj0h5DVQ8jfwc8DA7JiM+Dysv7z+qYrFYZR+Qd/TwnmpDI6UaB3GJRRTdY8jYGS4" crossorigin="anonymous">
 					 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/fontawesome.css" integrity="sha384-WK8BzK0mpgOdhCxq86nInFqSWLzR5UAsNg0MGX9aDaIIrFWQ38dGdhwnNCAoXFxL" crossorigin="anonymous">'),
@@ -42,12 +42,10 @@ shinyUI(
 																					  `Manual entry` = "manual"),
 																justified = TRUE,
 																checkIcon = list(
-														      yes = tags$i(class = "fa fa-check-square",
-														                   style = "color: white"))),
+														      yes = tags$i(class = "fa fa-check-square"))),
 							conditionalPanel(condition = 'input.dataInputType == "demo"',
-								h3("Select a demo dataset"),
 								selectInput(inputId = "demoData",
-														label = "",
+														label = "Select a demo dataset",
 														choices = c(
 															"Wave Height"           = "Wave Height",
 															"Rainfall"              = "Rainfall",
@@ -69,7 +67,7 @@ shinyUI(
 														'text/plain','.txt')),
 									#checkboxInput("useExampleDataset", label = p(HTML("&hellip;"), "or check this box to use our example dataset about sea-surge heights measured in feet.", tags$small("Note: this will override any datafile you have uploaded!")), value = FALSE),
 								),
-								h3("What it your data about?"),
+								h3("What is your data about?"),
 								selectInput("dataType", label = p("Select what your data represents:"),
 									choices = c("Wave height",
 									            "Windspeed",
@@ -263,7 +261,7 @@ shinyUI(
 					column(6,
 						div(
 							div(
-								h3("Calculate a probability from this model", class = "panel-primary"),
+								h3("Calculate a probability from this model", class = "panel-title"),
 								class = "panel-heading"
 							),
 							div(
@@ -281,7 +279,7 @@ shinyUI(
 					column(6,
 						div(
 							div(
-								h3(textOutput("howExtremeText1"), class = "panel-primary"),
+								h3(textOutput("howExtremeText1"), class = "panel-title"),
 								class = "panel-heading"
 							),
 							div(
@@ -351,7 +349,7 @@ shinyUI(
 							column(6,
 								div(
 									div(
-										h3("Calculate a probability from this model", class = "panel-primary"),
+										h3("Calculate a probability from this model", class = "panel-title"),
 										class = "panel-heading"
 									),
 									div(
@@ -369,7 +367,7 @@ shinyUI(
 							column(6,
 								div(
 									div(
-										h3(textOutput("howExtremeText2"), class = "panel-primary"),
+										h3(textOutput("howExtremeText2"), class = "panel-title"),
 										class = "panel-heading"
 									),
 									div(
@@ -444,7 +442,7 @@ shinyUI(
 		          column(6,
               	div(
                   div(
-                    h3("Calculate a probability from this model", class = "panel-primary"),
+                    h3("Calculate a probability from this model", class = "panel-title"),
                     class = "panel-heading"
                   ),
                   div(
@@ -462,7 +460,7 @@ shinyUI(
 		          column(6,
                 div(
                   div(
-                    h3(textOutput("howExtremeText3"), class = "panel-primary"),
+                    h3(textOutput("howExtremeText3"), class = "panel-title"),
                     class = "panel-heading"
                   ),
                   div(
@@ -540,7 +538,7 @@ shinyUI(
 							column(6,
 								div(
 									div(
-										h3("Calculate a probability from this model", class = "panel-primary"),
+										h3("Calculate a probability from this model", class = "panel-title"),
 										class = "panel-heading"
 									),
 									div(
@@ -558,7 +556,7 @@ shinyUI(
 							column(6,
 								div(
 									div(
-										h3(textOutput("howExtremeText4"), class = "panel-primary"),
+										h3(textOutput("howExtremeText4"), class = "panel-title"),
 										class = "panel-heading"
 									),
 									div(
@@ -629,7 +627,7 @@ shinyUI(
 							column(6,
 								div(
 									div(
-										h3("Calculate a probability from this model", class = "panel-primary"),
+										h3("Calculate a probability from this model", class = "panel-title"),
 										class = "panel-heading"
 									),
 									div(
@@ -647,7 +645,7 @@ shinyUI(
 							column(6,
 								div(
 									div(
-										h3(textOutput("howExtremeText5"), class = "panel-primary"),
+										h3(textOutput("howExtremeText5"), class = "panel-title"),
 										class = "panel-heading"
 									),
 									div(
@@ -725,7 +723,7 @@ shinyUI(
 						 column(6,
 							div(
 								div(
-									h3("Calculate a probability from this model", class = "panel-primary"),
+									h3("Calculate a probability from this model", class = "panel-title"),
 									class = "panel-heading"
 								),
 								div(
@@ -743,7 +741,7 @@ shinyUI(
 							column(6,
 								div(
 									div(
-										h3(textOutput("howExtremeText6"), class = "panel-primary"),
+										h3(textOutput("howExtremeText6"), class = "panel-title"),
 										class = "panel-heading"
 									),
 									div(
