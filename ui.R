@@ -303,10 +303,8 @@ shinyUI(
 							div(
 								wellPanel(
 									sliderInput("RFWallHeightInput",
-										label = list(
-											h4("Choose how rare the event should be."),
-											uiOutput("howExtremeSliderLabel1")
-										), min = 2, max = 1000, value = 100
+										label = "How extreme will the event be?",
+										min = 2, max = 1000, value = 100
 									)
 								),
 								p("A once in a ",textOutput("RFWallHeightInput",,T)," event corresponds to an exceedance probability ",htmlOutput("RFWallHeightP",T), " (to 4 significant figures)."),
@@ -391,10 +389,7 @@ shinyUI(
 									div(
 										wellPanel(
 											sliderInput("gumbelWallHeightInput",
-																	label = list(
-																		h4("Choose how rare the event should be:"),
-																		uiOutput("howExtremeSliderLabel2")
-																	),
+																	label = "How extreme will the event be?",
 																	min = 2,
 																	max = 1000,
 																	value = 100)
@@ -484,10 +479,7 @@ shinyUI(
                   div(
                     wellPanel(
                       sliderInput("GEVWallHeightInput",
-				                          label = list(
-				                            h4("Choose how rare the event should be."),
-				                            uiOutput("howExtremeSliderLabel3")
-				                          ),
+				                          label = "How extreme will the event be?",
 																	min = 2,
 																	max = 1000,
 																	value = 100)
@@ -580,10 +572,7 @@ shinyUI(
 									div(
 										wellPanel(
 											sliderInput("normalWallHeightInput",
-																	label = list(
-																		h4("Choose how rare the event should be."),
-																		uiOutput("howExtremeSliderLabel4")
-																	),
+																	label = "How extreme will the event be?",
 																	min = 2,
 																	max = 1000,
 																	value = 100)
@@ -669,10 +658,7 @@ shinyUI(
 									div(
 										wellPanel(
 											sliderInput("expWallHeightInput",
-																	label = list(
-																		h4("Choose how rare the event should be."),
-																		uiOutput("howExtremeSliderLabel5")
-																	),
+																	label = "How extreme will the event be?",
 																	min = 2,
 																	max = 1000,
 																	value = 100)
@@ -765,10 +751,7 @@ shinyUI(
 									div(
 										wellPanel(
 											sliderInput("gammaWallHeightInput",
-																	label = list(
-																		h4("Choose how rare the event should be."),
-																		uiOutput("howExtremeSliderLabel6")
-																	),
+																	label = "How extreme will the event be?",
 																	min = 2,
 																	max = 1000,
 																	value = 100)

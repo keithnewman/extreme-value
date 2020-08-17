@@ -221,25 +221,27 @@ shinyServer(
 		howExtremesliderInputLabelGenerator <- reactive({
 			return(
 				switch(input$dataType,
-					"Wave height" = p("How high should we build a wall to protect from a \"once in a ", HTML("&hellip;"), " ", input$dataTimeframe, " storm\"?"),
-					p("How extreme would we expect the ", input$dataType, " to be \"once every ",HTML("&hellip;")," ", input$dataTimeframe, "\"?")  # Default text if nothing else matches
+					"Wave height" = paste("How high should we build a wall to protect from a \"once in a \u2026", input$dataTimeframe, "storm\"?"),
+					paste0("How extreme would we expect the ", tolower(input$dataType), " to be \"once every \u2026 ", input$dataTimeframe, "\"?")  # Default text if nothing else matches
 				)
 			)
 		})
 		# Need one of each of these per box in the app
-		output$howExtremeSliderLabel1 <- renderUI({howExtremesliderInputLabelGenerator()})
-		output$howExtremeSliderLabel2 <- renderUI({howExtremesliderInputLabelGenerator()})
-		output$howExtremeSliderLabel3 <- renderUI({howExtremesliderInputLabelGenerator()})
-		output$howExtremeSliderLabel4 <- renderUI({howExtremesliderInputLabelGenerator()})
-		output$howExtremeSliderLabel5 <- renderUI({howExtremesliderInputLabelGenerator()})
-		output$howExtremeSliderLabel6 <- renderUI({howExtremesliderInputLabelGenerator()})
+		observe(priority = -1, {
+			updateSliderInput(session, "RFWallHeightInput", label = howExtremesliderInputLabelGenerator())
+			updateSliderInput(session, "gumbelWallHeightInput", label = howExtremesliderInputLabelGenerator())
+			updateSliderInput(session, "GEVWallHeightInput", label = howExtremesliderInputLabelGenerator())
+			updateSliderInput(session, "normalWallHeightInput", label = howExtremesliderInputLabelGenerator())
+			updateSliderInput(session, "expWallHeightInput", label = howExtremesliderInputLabelGenerator())
+			updateSliderInput(session, "gammaWallHeightInput", label = howExtremesliderInputLabelGenerator())
+		})
 
 		# The sentence before the "how extreme answer is given"
 		howExtremeAnswerPreambleGenerator <- reactive({
 			return(
 				switch(input$dataType,
-					"Wave height" = "The required height \\(x\\) of the wall can be calculated as,",
-					paste0("We would expect to see an extreme ", input$dataType, " \\(x\\) equal to,")  # Default text if nothing else matches
+					"Wave height" = "The required height \\(z\\) of the wall can be calculated as,",
+					paste0("We would expect to see an extreme ", tolower(input$dataType), " \\(z\\) equal to,")  # Default text if nothing else matches
 				)
 			)
 		})
@@ -247,6 +249,9 @@ shinyServer(
 		output$howExtremeAnswerPreamble1 <- renderText({howExtremeAnswerPreambleGenerator()})
 		output$howExtremeAnswerPreamble2 <- renderText({howExtremeAnswerPreambleGenerator()})
 		output$howExtremeAnswerPreamble3 <- renderText({howExtremeAnswerPreambleGenerator()})
+		output$howExtremeAnswerPreamble4 <- renderText({howExtremeAnswerPreambleGenerator()})
+		output$howExtremeAnswerPreamble5 <- renderText({howExtremeAnswerPreambleGenerator()})
+		output$howExtremeAnswerPreamble6 <- renderText({howExtremeAnswerPreambleGenerator()})
 
 		######## Plots of input data #########
 
