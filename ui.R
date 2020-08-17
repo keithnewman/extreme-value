@@ -27,8 +27,12 @@ shinyUI(
 						'Shiny.addCustomMessageHandler("dataInputError", function(isOK) {
 							if (isOK) {
 								$("#input-error").addClass("hidden");
+								$("#manualDataInput").parent().removeClass("has-warning");
+								$("#manualDataInput").parent().addClass("has-success");
 							} else {
 								$("#input-error").removeClass("hidden");
+								$("#manualDataInput").parent().removeClass("has-success");
+								$("#manualDataInput").parent().addClass("has-warning");
 							}
 						});'
 					))
@@ -39,9 +43,9 @@ shinyUI(
 							h2("Data Upload"),
 							radioGroupButtons(inputId = "dataInputType",
 						                    label = "Data input method",
-															  choices = c(`Demo data` = "demo",
-																            `File upload` = "file",
-																					  `Manual entry` = "manual"),
+															  choices = c(`File upload` = "file",
+																					  `Manual entry` = "manual",
+																					  `Demo data` = "demo"),
 																justified = TRUE,
 																checkIcon = list(
 														      yes = tags$i(class = "fa fa-check-square"))),
@@ -182,20 +186,32 @@ shinyUI(
 					),
 					column(9,
 						conditionalPanel(condition = 'input.dataInputType == "manual"',
-							textAreaInput(inputId = "manualDataInput",
-							              label = "Enter data",
-												    value = "",
-											      width = "100%",
-											      placeholder = 'Type values separated by commas "," or spaces " "...'),
-							actionButton("submitManualData",
-													 "Submit",
-												   class = "btn-primary"),
-							actionButton("clearManualData",
-						               "Clear",
-												   class = "btn-default"),
-						  HTML('<div class="alert alert-warning hidden" role="alert" id="input-error" style="margin-top:1em;">
-										 <p>Warning: Some of the input values were not valid numbers. These have been removed.</p>
-									 </div>'),
+							fluidRow(column(12,
+								div(
+									div(
+										h2("Manual data input", class = "panel-title"),
+										class = "panel-heading"
+									),
+									div(
+										textAreaInput(inputId = "manualDataInput",
+										              label = "Enter data",
+															    value = "",
+														      width = "100%",
+														      placeholder = 'Type values separated by commas "," or spaces " "...'),
+										actionButton("submitManualData",
+																 "Submit",
+															   class = "btn-primary"),
+										actionButton("clearManualData",
+									               "Clear",
+															   class = "btn-default"),
+									  HTML('<div class="alert alert-warning hidden" role="alert" id="input-error" style="margin-top:1em;">
+													 <p>Warning: Some of the input values were not valid numbers. These have been removed.</p>
+												 </div>'),
+										class = "panel-body"
+									),
+									class = "panel panel-primary"
+								)
+							))
 						),
 						h3("Data Preview"),
 						conditionalPanel(condition = 'input.dataInputType == "demo"',
