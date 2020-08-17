@@ -1,7 +1,7 @@
 app <- ShinyDriver$new("../../", seed = 12345)
 app$snapshotInit("extreme-values-test")
 
-app$uploadFile(dataIn = "../../surge.txt") # <-- This should be the path to the file, relative to the app's tests/shinytest directory
+app$uploadFile(dataIn = "../../data/surge.txt") # <-- This should be the path to the file, relative to the app's tests/shinytest directory
 app$setInputs(`navbar-pages` = "Relative frequency")
 app$setInputs(RFProbabilityInput = 8.9)
 app$setInputs(RFWallHeightInput = 65)
