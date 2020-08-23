@@ -1138,9 +1138,12 @@ shinyServer(
 		})
 
 		allGatheredPlotData <- reactive({
-			return(gather(allPlotData(),
-			              "Gumbel", "GEV", "Normal", "Exponential", "Gamma",
-			              key = "Model", value = "Probability"))
+			return(pivot_longer(
+				allPlotData(),
+				cols = c("Gumbel", "GEV", "Normal", "Exponential", "Gamma"),
+				names_to = "Model",
+				values_to = "Probability"
+			))
 		})
 
 		output$comparisonPlot <- renderPlotly({
