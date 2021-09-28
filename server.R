@@ -12,7 +12,8 @@ library(shiny)
 library(plotly)
 library(tidyr)
 
-`%then%` <- shiny:::`%OR%`
+#`%then%` <- shiny:::`%OR%`
+source("R/dataset.R")
 
 shinyServer(
 	function(input, output, session) {
@@ -84,12 +85,9 @@ shinyServer(
 
 		manualData <- eventReactive(
 			eventExpr = c(input$submitManualData, input$clearManualData),
-			valueExpr = {
-				d <- input$manualDataInput
-				# Split by any amount of commas, semi-colon, whitespace and newline
-				dSplit <- na.omit(as.numeric(strsplit(d, "[/,/;/ \n]+")[[1]]))
-				return(dSplit)
-			},
+			# TODO: Add try-catch for the errors this can throw.
+			valueExpr = {return(DataFromString$new(input$manualDataInput,
+			                                       units = input$dataUnits))},
 			ignoreInit = TRUE
 		)
 
@@ -97,25 +95,19 @@ shinyServer(
 		#' @return: Numeric vector of numeric values. NULL if no file provided.
 		dataset <- reactive({
 			if (input$dataInputType == "demo") {
-				updateSelectInput(session,
-					                inputId = "dataUnits",
-													selected = demodata[[input$demoData]][["units"]])
-				updateSelectInput(session,
-					                inputId = "dataType",
-													selected = demodata[[input$demoData]][["type"]])
-				return(demodata[[input$demoData]][["data"]])
-			}
-			else if (input$dataInputType == "file") {
+			  d <- DemoData$new(input$demoData)
+				updateSelectInput(session, inputId = "dataUnits", selected = d$units)
+				updateSelectInput(session, inputId = "dataType", selected = d$type)
+				return(d)
+			} else if (input$dataInputType == "file") {
 				datafile <- input$dataIn
 
 				validate(need(datafile, "Upload a dataset to begin."))
 				req(datafile)
 
-				return(as.numeric(unlist(read.table(datafile$datapath,
-				                                    sep = input$sepControl))))
-			}
-			else if (input$dataInputType == "manual") {
-				validate(need(manualData(), "Submit a valid dataset") %then%
+				return(DataFromFile$new(datafile$datapath, sep = input$sepControl))
+			} else if (input$dataInputType == "manual") {
+				validate(need(manualData(), "Submit a valid dataset"),
 			           need(length(manualData()) > 1, "Enter at least 2 valid values"))
 				# If invalid values were removed, activate the warning.
 				session$sendCustomMessage("dataInputError",
@@ -124,10 +116,10 @@ shinyServer(
 			}
 		})
 		#
-		output$datafile <- renderPrint({dataset()})
+		output$datafile <- renderPrint({dataset()$getData()})
 
 		# Length of the Dataset
-		dataLength <- reactive({return(length(dataset()))})
+		dataLength <- reactive({return(dataset()$length())})
 
 		# Clear the manual text box if the user resets the input.
 		observeEvent(eventExpr = input$clearManualData, ignoreInit = TRUE,
@@ -138,7 +130,7 @@ shinyServer(
 
 		# Sorted version of the input data in ascending order
 		output$datafileSorted <- renderPrint({
-			return(sort(dataset(), decreasing = FALSE))
+			return(dataset()$sortData(decreasing = FALSE))
 		})
 
 		# Dataset in tibble format
@@ -146,37 +138,21 @@ shinyServer(
 			return(tibble(x = dataset()))
 		})
 
-		output$SummaryTable <- renderTable({
-				# Find min, LQ, median, UQ and max in one go
-				summaryQuant <- quantile(dataset())
-
-				Summary <- data.frame(l    = length(dataset()),
-															Mean = mean(dataset()),
-															sd   = sd(dataset()),
-															min  = summaryQuant[1],
-															lq   = summaryQuant[2],
-															med  = summaryQuant[3],
-															uq   = summaryQuant[4],
-															max  = summaryQuant[5])
-
-				colnames(Summary) <- c("Number of Observations",
-															 "Mean",
-															 "Standard Deviation",
-															 "Minimum Observation",
-															 "Lower Quartile",
-															 "Median",
-															 "Upper Quartile",
-															 "Maximum Observation")
-				return(Summary)
-			},
-			include.rownames = FALSE
-		)
+		output$SummaryTable <- renderTable(dataset()$summaryTable(),
+		                                   include.rownames = FALSE)
 		outputOptions(output, "SummaryTable", priority = -2)
+		
+		######## Plots of input data #########
+		
+		# Histogram of input data
+		output$exploratoryPlots <- renderPlotly(dataset()$summaryPlotly())
+		outputOptions(output, "exploratoryPlots", priority = -1)
+		
 
 		# Break points needed for plotting histogram and Relative Frequency table
 		dataPrettyBreaks <- reactive({
-			return(pretty(x = dataset(),
-			              n = 2 * nclass.FD(dataset())))
+			return(pretty(x = dataset()$getData(),
+			              n = 2 * nclass.FD(dataset()$getData())))
 		})
 
 		# Based on the type of the input data, we need to adjust text that appears
@@ -253,37 +229,6 @@ shinyServer(
 		output$howExtremeAnswerPreamble5 <- renderText({howExtremeAnswerPreambleGenerator()})
 		output$howExtremeAnswerPreamble6 <- renderText({howExtremeAnswerPreambleGenerator()})
 
-		######## Plots of input data #########
-
-		# Histogram of input data
-		output$exploratoryPlots <- renderPlotly({
-			units <- input$dataUnits
-			xlabel <- paste0(input$dataType, " maxima (", input$dataUnits, ")")
-			hist_ <- plot_ly(dataTibble(), x = ~x, type = "histogram", name = xlabel) %>%
-    		layout(xaxis = list(title = xlabel),
-				       yaxis = list(title = "Frequency",
-			 	                    showline = TRUE,
-			 	                    showticklabels = TRUE,
-													  showgrid = TRUE))
-			boxp_ <- plot_ly(dataTibble(), x = ~x, type = "box", name = xlabel) %>%
-				layout(xaxis = list(title = xlabel,
-														showticklabels = TRUE,
-														showgrid = TRUE),
-							 yaxis = list(title = "",
-														showline = FALSE,
-														showticklabels = FALSE,
-														showgrid = FALSE))
-			ss <- subplot(hist_,
-			              # plotly_empty(),
-										boxp_,
-			              nrows = 2,
-			              heights = c(0.8, 0.2),
-			              # widths = c(0.8, 0.2),
-			              shareX = TRUE,
-									  titleY = TRUE)
-			return(layout(ss, title=xlabel, showlegend=FALSE))
-		})
-		outputOptions(output, "exploratoryPlots", priority = -1)
 
 		####### Relative frequencies page ###########
 		output$RFtablePreamble <- renderUI({
@@ -312,7 +257,7 @@ shinyServer(
 			         by = prettyBreakInt)
 
 			# How many data points exceed each of these x values
-			nExceedingX <- sapply(x, function(xVal) sum(dataset() > xVal))
+			nExceedingX <- sapply(x, function(xVal) sum(dataset()$getData() > xVal))
 
 			# Find relative exceedance probability
 			probExceedX <- nExceedingX / dataLength()
@@ -337,20 +282,20 @@ shinyServer(
 			# Add some dummy points to the left and right of the actual dataset
 			LEFT_PADDING = 0.4
 			RIGHT_PADDING = 2.0
-			x = c(min(dataset()) - LEFT_PADDING,
-			      dataset(),
-						max(dataset()) + RIGHT_PADDING)
+			x = c(min(dataset()$getData()) - LEFT_PADDING,
+			      dataset()$getData(),
+						max(dataset()$getData()) + RIGHT_PADDING)
 
 			relFreqData <- tibble(
 				x = x,
-			  Probability = sapply(x, function(xVal) sum(dataset() > xVal) / dataLength())
+			  Probability = sapply(x, function(xVal) sum(dataset()$getData() > xVal) / dataLength())
 			)
 			return(relFreqData)
 		})
 
 		# The actual data points with the two dummy endpoints removed.
 		relFrequencyPlotData2 <- reactive({
-			d <- tibble(x = dataset(), Zeros = 0)
+			d <- tibble(x = dataset()$getData(), Zeros = 0)
 		})
 
 		output$RFplot <- renderPlotly({
@@ -373,7 +318,7 @@ shinyServer(
 
 		# Find a probability: input slider
 		output$RFProbabilitySlider <- renderUI({
-			req(dataset())
+			req(dataset()$getData())
 			sliderRange <- range(relFrequencyPlotData()[, 1])
 			return(
 				sliderInput("RFProbabilityInput",
@@ -395,8 +340,8 @@ shinyServer(
 
 		# Find a probability: text description
 		output$RFProbabilityDescription <- renderUI({
-			req(dataset())
-			exceedances <- sum(dataset() > input$RFProbabilityInput)
+			req(dataset()$getData())
+			exceedances <- sum(dataset()$getData() > input$RFProbabilityInput)
 			return(withMathJax(p(sprintf(
 				"We have seen %1$i instances when the %2$s has exceeded %3$.2f %4$s in
 				our %5$i observations. Therefore, the probability of observing a %2$s
@@ -431,7 +376,7 @@ shinyServer(
 				withMathJax(
 					sprintf(
 						"$$x=%0.2f\\text{ %s (to 2 decimal places).}$$",
-						dataset()[dataLength() - ceiling(dataLength() / input$RFWallHeightInput) + 1],
+						dataset()$getData()[dataLength() - ceiling(dataLength() / input$RFWallHeightInput) + 1],
 						input$dataUnits
 					)
 				)
@@ -446,9 +391,9 @@ shinyServer(
 		gumbel.loglik <- function(theta) {
 			mu <- theta[1]
 			sigma <- theta[2]
-			loglik <- -length(dataset()) * log(sigma) -
-									sum(exp(-((dataset() - mu) / sigma))) -
-									sum((dataset() - mu) / sigma)
+			loglik <- -length(dataset()$getData()) * log(sigma) -
+									sum(exp(-((dataset()$getData() - mu) / sigma))) -
+									sum((dataset()$getData() - mu) / sigma)
 			return(-loglik)
 		}
 
@@ -459,7 +404,7 @@ shinyServer(
 		#' Find the maximum likelihood estimates of the Gumbel distribution
 		gumbelFit <- reactive({
 			#set initial values for the parameter vector theta=c(mu,sigma)
-			theta <- c(mean(dataset()), sd(dataset()))
+			theta <- c(mean(dataset()$getData()), sd(dataset()$getData()))
 			return(nlm(gumbel.loglik, theta, hessian=TRUE))
 		})
 		gumbelParameters <- reactive({gumbelFit()$est})
@@ -588,14 +533,14 @@ shinyServer(
 			mu <- theta[1]
 			sigma <- theta[2]
 			xi <- theta[3]
-			m <- min((1 + (xi * (dataset() - mu) / sigma)))
+			m <- min((1 + (xi * (dataset()$getData() - mu) / sigma)))
 			delta <- sqrt(.Machine$double.eps)
 			if (m < delta) return(.Machine$double.xmax)
 			if (sigma < delta) return(.Machine$double.xmax)
 			if(xi == 0) {
-				loglik = -length(dataset()) * log(sigma) - sum((dataset() - mu) / sigma) - sum(exp(-((dataset() - mu) / sigma)))
+				loglik = -length(dataset()$getData()) * log(sigma) - sum((dataset()$getData() - mu) / sigma) - sum(exp(-((dataset()$getData() - mu) / sigma)))
 			} else {
-				loglik = -length(dataset()) * log(sigma) - (1 / xi + 1) * sum(log(1 + (xi * (dataset() - mu) / sigma))) - sum((1 + (xi * (dataset() - mu) / sigma)) ** (-1 / xi))
+				loglik = -length(dataset()$getData()) * log(sigma) - (1 / xi + 1) * sum(log(1 + (xi * (dataset()$getData() - mu) / sigma))) - sum((1 + (xi * (dataset()$getData() - mu) / sigma)) ** (-1 / xi))
 			}
 			return(-loglik)
 		}
@@ -607,7 +552,7 @@ shinyServer(
 		#' Find the maximum likelihood estimates of the Gumbel distribution
 		gevFit <- reactive({
 			#set initial values for the parameter vector theta=c(mu, sigma, xi)
-			theta <- c(mean(dataset()), sd(dataset()), 0.1)
+			theta <- c(mean(dataset()$getData()), sd(dataset()$getData()), 0.1)
 			return(nlm(GEV.loglik, theta, hessian=TRUE))
 		})
 		gevParameters <- reactive({gevFit()$est})
@@ -742,13 +687,13 @@ shinyServer(
 		### Normal Distribution ###
 		output$dataTypeND <- renderText({tolower(input$dataType)})
 
-		normalParameterMean <- reactive({return(mean(dataset()))})
-		normalParameterSD <- reactive({return(sd(dataset()))})
+		normalParameterMean <- reactive({return(mean(dataset()$getData()))})
+		normalParameterSD <- reactive({return(sd(dataset()$getData()))})
 
 		normal_loglik <- function(theta) {
 			mu <- theta[1]
 			sigma <- theta[2]
-			return(-sum(dnorm(dataset(), mu, theta, log = TRUE)))
+			return(-sum(dnorm(dataset()$getData(), mu, theta, log = TRUE)))
 		}
 
 		normalFit <- reactive({
@@ -859,9 +804,9 @@ shinyServer(
 		### Exponential Model ###
 		output$dataTypeExp <- renderText({tolower(input$dataType)})
 
-		expParameterMean <- reactive({return(mean(dataset()))})
+		expParameterMean <- reactive({return(mean(dataset()$getData()))})
 		expParameterLambda <- reactive({return(1 / expParameterMean())})
-		expParameterSD <- reactive({return(sd(dataset()))})
+		expParameterSD <- reactive({return(sd(dataset()$getData()))})
 		expParameterSE <- reactive({
 			return(1 / (expParameterMean() * sqrt(dataLength())))
 		})
@@ -978,18 +923,18 @@ shinyServer(
 			delta = sqrt(.Machine$double.eps)
 			if (alpha < delta) return(.Machine$double.xmax)
 			if (beta < delta) return(.Machine$double.xmax)
-			loglik = length(dataset()) * alpha * log(beta) -
-			           length(dataset()) * log(gamma(alpha)) +
-								 (alpha - 1) * sum(log(dataset())) -
-								 beta * length(dataset()) * mean(dataset())
+			loglik = length(dataset()$getData()) * alpha * log(beta) -
+			           length(dataset()$getData()) * log(gamma(alpha)) +
+								 (alpha - 1) * sum(log(dataset()$getData())) -
+								 beta * length(dataset()$getData()) * mean(dataset()$getData())
 			return(-loglik)
 		}
 
 		#' Find the maximum likelihood estimates of the Gumbel distribution
 		gammaFit <- reactive({
 			#set initial values for the parameter vector theta = c(alpha, beta)
-			theta <- c(mean(dataset())^2 / sd(dataset())^2,
-			           mean(dataset()) / sd(dataset())^2)
+			theta <- c(mean(dataset()$getData())^2 / sd(dataset()$getData())^2,
+			           mean(dataset()$getData()) / sd(dataset()$getData())^2)
 			return(nlm(gamma.loglik, theta, hessian = TRUE))
 		})
 		gammaParameters <- reactive({gammaFit()$est})
