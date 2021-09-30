@@ -522,7 +522,7 @@ shinyServer(
 			delta <- sqrt(.Machine$double.eps)
 			if (m < delta) return(.Machine$double.xmax)
 			if (sigma < delta) return(.Machine$double.xmax)
-			if(xi == 0) {
+			if (xi == 0) {
 				loglik = -length(dataset()$getData()) * log(sigma) - sum((dataset()$getData() - mu) / sigma) - sum(exp(-((dataset()$getData() - mu) / sigma)))
 			} else {
 				loglik = -length(dataset()$getData()) * log(sigma) - (1 / xi + 1) * sum(log(1 + (xi * (dataset()$getData() - mu) / sigma))) - sum((1 + (xi * (dataset()$getData() - mu) / sigma)) ** (-1 / xi))
@@ -614,10 +614,7 @@ shinyServer(
 							gevParameters()[1], #5
 							gevParameters()[2], #6
 							gevParameters()[3], #7
-							pegev(input$GEVProbabilityInput,
-								    gevParameters()[1],
-								    gevParameters()[2],
-										gevParameters()[3]) #8
+							gev()$exceedanceProb(input$GEVProbabilityInput) #8
 						)
 					)
 				)
