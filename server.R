@@ -9,6 +9,7 @@
 #' @version: 1.3.1
 
 library(shiny)
+library(shinyjs)
 library(plotly)
 library(tidyr)
 
@@ -364,7 +365,7 @@ shinyServer(
 		  return(Normal$new(dataset()))
 		})
 		
-		# Pass the GEV model to the server module
+		# Pass the Normal model to the server module
 		probabilityModelServer("Normal",
 		                       normal,
 		                       inputUnits,
@@ -377,152 +378,40 @@ shinyServer(
 		  return(Exponential$new(dataset()))
 		})
 		
-		# Pass the GEV model to the server module
+		# Pass the Exponential model to the server module
 		probabilityModelServer("Exponential",
 		                       exponential,
 		                       inputUnits,
 		                       inputTimeframe,
 		                       inputDataType)
-
+		
 		### Gamma Model ###
-		output$dataTypeGM <- renderText({tolower(input$dataType)})
-
-		#' Negative log-likelihood for the Gamma model
-		gamma.loglik <- function(theta){
-			alpha = theta[1]
-			beta = theta[2]
-
-			delta = sqrt(.Machine$double.eps)
-			if (alpha < delta) return(.Machine$double.xmax)
-			if (beta < delta) return(.Machine$double.xmax)
-			loglik = length(dataset()$getData()) * alpha * log(beta) -
-			           length(dataset()$getData()) * log(gamma(alpha)) +
-								 (alpha - 1) * sum(log(dataset()$getData())) -
-								 beta * length(dataset()$getData()) * mean(dataset()$getData())
-			return(-loglik)
-		}
-
-		#' Find the maximum likelihood estimates of the Gumbel distribution
-		gammaFit <- reactive({
-			#set initial values for the parameter vector theta = c(alpha, beta)
-			theta <- c(mean(dataset()$getData())^2 / sd(dataset()$getData())^2,
-			           mean(dataset()$getData()) / sd(dataset()$getData())^2)
-			return(nlm(gamma.loglik, theta, hessian = TRUE))
+		# Create a Gamma model instance
+		gamma <- reactive({
+		  return(Gamma$new(dataset()))
 		})
-		gammaParameters <- reactive({gammaFit()$est})
-		gammaParametersSE <- reactive({
-			hess <- gammaFit()$hessian
-			errors <- sqrt(diag(solve(hess)))
-			return(errors)
-		})
-
-		output$gammaTablePreamble <- renderUI({
-			withMathJax(
-				sprintf(
-					"For the data you provided, we have found that \\(\\alpha=%0.3f%s\\)
-					and \\(\\beta=%0.3f%s\\)
-					(Both values given to 3 decimal places).",
-					gammaParameters()[1],
-					ifelse(input$standardErrorGamma, sprintf(" \\left(%0.3f\\right)", gammaParametersSE()[1]), ""),
-					gammaParameters()[2],
-					ifelse(input$standardErrorGamma, sprintf(" \\left(%0.3f\\right)", gammaParametersSE()[2]), "")
-				)
-			)
-		})
-
-		# Create data table of cumulative counts and probabilities
-		gammaTable <- reactive({
-			x <- relFreqTable()$x
-			prExceedX <- 1 - pgamma(x, gammaParameters()[1], gammaParameters()[2])
-			return(data.frame(x = x,
-												`Probability of exceeding x` = prExceedX,
-												check.names = FALSE))
-		})
-		output$gammaTable <- renderTable({gammaTable()},
-		                                 include.rownames = FALSE,
-																		 digits = 4)
-		outputOptions(output, "gammaTable", priority = -2)
-
-		# Create a GEV plot
-		output$gammaPlot <- renderPlotly({
-			d <- allPlotData()[, c("x", "Gamma")]
-			return(plot_ly(d, x = ~x, y = ~Gamma) %>%
-							add_lines(line = list(shape = "spline"),
-												name = "Gamma",
-												hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
-																							 input$dataUnits,
-																							 ") = %{y:.4f}")) %>%
-							layout(yaxis = list(title = "Probability")))
-		})
-		outputOptions(output, "gammaPlot", priority = -2)
-
-		# Find a probability: text description
-		output$gammaProbabilityDescription <- renderUI({
-			return(
-				withMathJax(
-					p(
-						sprintf(
-							"The probability of observing a %1$s greater than
-							\\(x=%2$0.2f\\) %3$s every %4$s is given by
-							$$\\mathrm{Pr}(X>%2$0.2f)=
-								\\frac{%6$0.3f^{%5$0.3f}}
-								{\\Gamma(%5$0.3f)}
-								\\int_{%2$0.2f}^{\\infty}{t^{%5$0.3f-1}
-								\\exp\\left(-%6$0.3f t\\right)\\mathop{dt}}
-								=%7$0.4f\\text{ (to 4 decimal places).}$$",
-							tolower(input$dataType), #1
-							input$gammaProbabilityInput, #2
-							input$dataUnits, #3
-							input$dataTimeframe, #4
-							gammaParameters()[1], #5
-							gammaParameters()[2], #6
-							1 - pgamma(input$gammaProbabilityInput,
-								         gammaParameters()[1],
-												 gammaParameters()[2]) #7
-						)
-					)
-				)
-			)
-		})
-		outputOptions(output, "gammaProbabilityDescription", priority = -3)
-
-		# Find a wall height
-		output$gammaWallHeightInput <- renderText({
-			paste(input$gammaWallHeightInput, input$dataTimeframe)
-		})
-		output$gammaWallHeightP <- renderUI({
-			withMathJax(
-				paste0("\\(p=", signif(1 / input$gammaWallHeightInput, 4), "\\)")
-			)
-		})
-
-		output$gammaWallHeightCalculation <- renderUI({
-			return(withMathJax(
-				sprintf(
-					"$$z_{%3$.0f}
-					=\\mathrm{F}^{-1}\\left(\\frac{1}{%3$.0f}, %1$0.3f, %2$0.3f\\right)
-					=%4$0.2f\\text{ %5$s (to 2 decimal places).}$$",
-					gammaParameters()[1], #1
-					gammaParameters()[2], #2
-					input$gammaWallHeightInput, #3
-					qgamma(1 - (1 / input$gammaWallHeightInput),
-					       gammaParameters()[1],
-								 gammaParameters()[2]), #4
-					input$dataUnits #5
-				)
-			))
-		})
+		
+		# Pass the Gamma model to the server module
+		probabilityModelServer("Gamma",
+		                       gamma,
+		                       inputUnits,
+		                       inputTimeframe,
+		                       inputDataType)
+		
+		## Need to hide the standard error option for the return level as there is
+		# no method for its calculation
+		shinyjs::hide(NS("Gamma", id = "standardErrorWall"))
 
 		######### Comparison page ###########
 		# Create data table of cumulative counts and probabilities
 		comparisonTable <- reactive({
 			comp <- relFreqTable()
 			names(comp)[3] <- "Relative Frequency"
-			comp$Gumbel <- gumbelTable()[, 2]
-			comp$GEV <- GEVTable()[, 2]
-			comp$Normal <- normalTable()[, 2]
-			comp$Exponential <- expTable()[, 2]
-			comp$Gamma <- gammaTable()[, 2]
+			comp$Gumbel <- gumbel()$tableOfProbabilities()[, 2]
+			comp$GEV <- gev()$tableOfProbabilities()[, 2]
+			comp$Normal <- normal()$tableOfProbabilities()[, 2]
+			comp$Exponential <- exponential()$tableOfProbabilities()[, 2]
+			comp$Gamma <- gamma()$tableOfProbabilities()[, 2]
 			return(comp)
 		})
 		output$comparisonTable <- renderTable({
@@ -545,11 +434,11 @@ shinyServer(
 			x <- pretty(relFreqTable()$x, n = 200)
 			d <- tibble(
 				x = x,
-			  Gumbel = pegumbel(x, gumbelParameters()[1], gumbelParameters()[2]),
-				GEV = pegev(x, gevParameters()[1], gevParameters()[2], gevParameters()[3]),
-				Normal = 1 - pnorm(x, normalParameterMean(), normalParameterSD()),
-				Exponential = 1 - pexp(x, expParameterLambda()),
-				Gamma = 1 - pgamma(x, gammaParameters()[1], gammaParameters()[2])
+			  Gumbel = gumbel()$exceedanceProb(x),
+				GEV = gev()$exceedanceProb(x),
+				Normal = normal()$exceedanceProb(x),
+				Exponential = exponential()$exceedanceProb(x),
+				Gamma = gamma()$exceedanceProb(x)
 			)
 			return(d)
 		})

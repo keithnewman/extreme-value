@@ -1,5 +1,7 @@
 library(shiny)
-probabilityModelUI <- function(id, title = "Probability Model") {
+probabilityModelUI <- function(id,
+                               title = "Probability Model",
+                               seForWall = TRUE) {
   ns <- NS(id)
   
   tagList(

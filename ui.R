@@ -9,6 +9,7 @@
 #' @version: 1.3.1
 
 library(shiny)
+library(shinyjs)
 library(shinyWidgets)
 library(plotly)
 shinyUI(
@@ -20,7 +21,8 @@ shinyUI(
 			collapsible = TRUE,
 			inverse = TRUE,
 			tabPanel("Data Upload",
-				singleton(tags$head(
+				useShinyjs(),
+		  	singleton(tags$head(
 					HTML('<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/solid.css" integrity="sha384-aj0h5DVQ8jfwc8DA7JiM+Dysv7z+qYrFYZR+Qd/TwnmpDI6UaB3GJRRTdY8jYGS4" crossorigin="anonymous">
 					<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.1/css/fontawesome.css" integrity="sha384-WK8BzK0mpgOdhCxq86nInFqSWLzR5UAsNg0MGX9aDaIIrFWQ38dGdhwnNCAoXFxL" crossorigin="anonymous">'),
 					tags$script(HTML(
@@ -67,7 +69,7 @@ shinyUI(
 								conditionalPanel(condition = 'input.dataInputType == "file"',
 									h3("File Upload"),
 									fileInput('dataIn', 'Upload your own data file',
-												    accept=c(#'text/csv',
+												    accept = c(#'text/csv',
 														#'text/comma-separated-values,text/plain',
 														#'.csv',
 														'text/plain','.txt')),
@@ -338,104 +340,14 @@ shinyUI(
 					  "Exponential Model",
 					   probabilityModelUI("Exponential", "Exponential Model")
 					),
-					tabPanel("Gamma Model",
-						h2("Gamma Model"),
-						div(
-							div(
-								h3("How probability is calculated using a probability model", class = "panel-title"),
-								class = "panel-heading"
-							), # End of panel header
-							div(
-								withMathJax(
-									p("The probability of a",
-										textOutput("dataTypeGM", inline = TRUE),
-										"exceeding a threshold \\(x\\) is given by the formula,
-										$$\\mathrm{Pr}(X>x)=\\frac{\\beta^{\\alpha}}{\\Gamma(\\alpha)}\\int_{x}^{\\infty}{t^{\\alpha-1}\\exp\\left(-\\beta t\\right)\\mathop{dt}}\\text{,}$$
-										where:"
-									),
-									tags$ul(
-										tags$li("\\(\\beta\\) is the ", em("rate"), " parameter,"),
-										tags$li("\\(\\alpha\\) is the ", em("shape"), " parameter,"),
-										tags$li("\\(X\\) is our ", em("random variable"), ","),
-										tags$li("\\(x\\) is the ", em("value"), " of our random variable,"),
-										tags$li("\\(\\exp\\) is the ", em("exponential function"), ".")
-									)
-								),
-								checkboxInput("standardErrorGamma",
-															"Include Standard Errors",
-															FALSE),
-								uiOutput("gammaTablePreamble"),
-								class = "panel-body"
-							), # End of panel body
-							class = "panel panel-info"
-						), # End of panel
-						fluidRow(
-							column(4,
-										 h3("Table of probabilities"),
-										 tableOutput("gammaTable")
-							),
-							column(8,
-										 h3("Plot of probabilities"),
-										 plotlyOutput("gammaPlot")
-							)
-						),
-						fluidRow(
-						 column(6,
-							div(
-								div(
-									h3("Calculate a probability from this model", class = "panel-title"),
-									class = "panel-heading"
-								),
-								div(
-									wellPanel(
-										sliderInput("gammaProbabilityInput",
-										            label = "Upload data to begin",
-										            min = 0, max = 1, value = 0, step = 0.05)
-									),
-									uiOutput("gammaProbabilityDescription"),
-									class = "panel-body"
-								),
-								class = "panel panel-primary"
-							)
-						 ),
-							column(6,
-								div(
-									div(
-										h3(textOutput("howExtremeText6"), class = "panel-title"),
-										class = "panel-heading"
-									),
-									div(
-										wellPanel(
-											sliderInput("gammaWallHeightInput",
-																	label = "How extreme will the event be?",
-																	min = 2,
-																	max = 1000,
-																	value = 100)
-										),
-										p("A once in a ",
-											textOutput("gammaWallHeightInput",,T),
-											" event corresponds to an exceedance probability ",
-											htmlOutput("gammaWallHeightP",T),
-											" (to 4 significant figures)."
-										),
-										withMathJax(
-											textOutput("howExtremeAnswerPreamble6"),
-											uiOutput("gammaWallHeightCalculation",T),
-											withMathJax(
-												p("Where \\(F\\) is the CDF of the Gamma Distribution.")
-											)
-										),
-										class = "panel-body"
-									),
-									class = "panel panel-primary"
-								)
-							)
-						)
+					tabPanel(
+					  "Gamma Model",
+					   probabilityModelUI("Gamma", "Gamma Model")
 					)
 				)
 			), # End of Probability Model page
 			tabPanel("Comparisons",
-				h1("Comparison in results"),
+				h1("Comparison of models"),
 				fluidRow(
 					column(12,
 						h3("Table of probabilities"),
