@@ -56,6 +56,14 @@ EVModel <- R6Class(
                layout(yaxis = list(title = "Probability")))
     },
     
+    probabilityCalcEquation = function() {
+      stop("Abstract method not implemented in parent class!")
+    },
+    
+    returnLevelEquation = function() {
+      stop("Abstract method not implemented in parent class!")
+    },
+    
     tableOfProbabilities = function() {
       private$optimiseIfNeeded()
       tab <- tibble::tibble(x = private$findPrettyBreaks()) %>%

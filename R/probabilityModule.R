@@ -63,7 +63,8 @@ probabilityModelUI <- function(id,
                                max = 1000,
                                value = 100)
                  ),
-                 p("A once in a ",
+                 p(tags$span(id = ns("probability-calculation-preamble")),
+                   "A once in a ",
                    textOutput(ns("wallHeightInput"), inline = TRUE),
                    " event corresponds to an exceedance probability ",
                    htmlOutput(ns("wallHeightP"), TRUE),
@@ -89,9 +90,6 @@ probabilityModelServer <- function(id, model, units, timeframe, dataType) {
   moduleServer(
     id,
     function(input, output, session) {
-      modelParameters <- reactive({model()$getFittedTheta()})
-      modelParametersSE <- reactive({model()$getSE()})
-      
       output$modelDescription <- renderUI({model()$description()})
       
       output$tablePreamble <- renderUI({
@@ -131,29 +129,10 @@ probabilityModelServer <- function(id, model, units, timeframe, dataType) {
       # Find a probability: text description
       output$probabilityDescription <- renderUI({
         return(
-          withMathJax(
-            p(
-              sprintf(
-                "The probability of observing a %1$s greater than
-							\\(x=%2$0.2f\\) %3$s every %4$s is given by
-							$$\\mathrm{Pr}(X>%2$0.2f)=
-								1-\\exp\\left[
-									-\\exp\\left\\{
-										-\\left(
-											\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}
-										\\right)
-									\\right\\}
-								\\right]=%7$0.4f\\text{ (to 4 decimal places).}$$",
-                tolower(dataType()), #1
-                input$probabilityInput, #2
-                units(), #3
-                timeframe(), #4
-                modelParameters()[1], #5
-                modelParameters()[2], #6
-                model()$exceedanceProb(input$probabilityInput) #7
-              )
-            )
-          )
+          model()$probabilityCalcEquation(input$probabilityInput,
+                                          timeframe(),
+                                          units(),
+                                          dataType())
         )
       })
       outputOptions(output, "probabilityDescription",
@@ -168,33 +147,11 @@ probabilityModelServer <- function(id, model, units, timeframe, dataType) {
           paste0("\\(p=", signif(1 / input$wallHeight, 4), "\\)")
         )
       })
-      
-      # Return Standard Errors
-      # gumbelWallSE <- reactive({
-      # 	hess <- solve(gumbelFit()$hessian)
-      # 	del <- matrix(c(1, -log(-log(1 - (1 / input$wallHeight)))),
-      # 	              ncol = 1, nrow = 2)
-      # 	error = sqrt(t(del) %*% hess %*% del)
-      # 	return(error)
-      # })
-      
+
       output$wallHeightCalculation <- renderUI({
-        return(withMathJax(
-          sprintf(
-            "$$z_{%3$.0f}=%1$0.3f-%2$0.3f\\log\\left[
-						-\\log\\left(1-\\frac{1}{%3$.0f}\\right)
-					\\right]=%4$0.2f%5$s\\text{ %6$s (to 2 decimal places).}$$",
-            modelParameters()[1], #1
-            modelParameters()[2], #2
-            input$wallHeight, #3
-            model()$returnLevel(input$wallHeight), #4
-            ifelse(input$standardErrorWall,
-                   sprintf("\\ (%.2f)",
-                           model()$returnLevelSE(input$wallHeight)),
-                   ""), #5
-            units() #6
-          )
-        ))
+        return(model()$returnLevelEquation(input$wallHeight,
+                                           input$standardErrorWall,
+                                           units()))
       })
       invisible(TRUE)
     }

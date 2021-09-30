@@ -75,6 +75,59 @@ Gumbel <- R6Class(
       return(ll)
     },
     
+    probabilityCalcEquation = function(x,
+                                       timeframe,
+                                       units = private$data$units,
+                                       dataType = private$data$type) {
+      params <- self$getFittedTheta()
+      return(
+        withMathJax(
+          p(
+            sprintf(
+              "The probability of observing a %1$s greater than
+							\\(x=%2$0.2f\\) %3$s every %4$s is given by
+							$$\\mathrm{Pr}(X>%2$0.2f)=
+								1-\\exp\\left[
+									-\\exp\\left\\{
+										-\\left(
+											\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}
+										\\right)
+									\\right\\}
+								\\right]=%7$0.4f\\text{ (to 4 decimal places).}$$",
+              tolower(dataType), #1
+              x, #2
+              units, #3
+              timeframe, #4
+              params[1], #5
+              params[2], #6
+              self$exceedanceProb(x) #7
+            )
+          )
+        )
+      )
+    },
+    
+    returnLevelEquation = function(r,
+                                   standardError = TRUE,
+                                   units = private$data$units) {
+      params <- self$getFittedTheta()
+      return(withMathJax(
+        sprintf(
+          "$$z_{%3$.0f}=%1$0.3f-%2$0.3f\\log\\left[
+						-\\log\\left(1-\\frac{1}{%3$.0f}\\right)
+					\\right]=%4$0.2f%5$s\\text{ %6$s (to 2 decimal places).}$$",
+          params[1], #1
+          params[2], #2
+          r, #3
+          self$returnLevel(r), #4
+          ifelse(standardError,
+                 sprintf("\\ (%.2f)", self$returnLevelSE(r)),
+                 ""), #5
+          units #6
+        )
+      ))
+    },
+    
     returnLevel = function(r) {
       private$optimiseIfNeeded()
       rl <- private$theta[1] - private$theta[2] * log(-log(1 - (1/r)))

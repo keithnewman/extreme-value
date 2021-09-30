@@ -83,6 +83,63 @@ GEV <- R6Class(
       return(ll)
     },
     
+    probabilityCalcEquation = function(x,
+                                       timeframe,
+                                       units = private$data$units,
+                                       dataType = private$data$type) {
+      params <- self$getFittedTheta()
+      return(
+        withMathJax(
+          p(
+            sprintf(
+              "The probability of observing a %1$s greater than
+							\\(x=%2$0.2f\\) %3$s every %4$s is given by
+							$$\\mathrm{Pr}(X>%2$0.2f)=
+								1-\\exp\\left\\{-\\left[1+%7$0.3f
+									-\\left(
+										\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}
+									\\right)\\right]^{-\\frac{1}{%7$0.3f}}
+								\\right\\}
+								=%8$0.4f\\text{ (to 4 decimal places).}$$",
+              tolower(dataType), #1
+              x, #2
+              units, #3
+              timeframe, #4
+              params[1], #5
+              params[2], #6
+              params[3], #7
+              self$exceedanceProb(x) #8
+            )
+          )
+        )
+      )
+    },
+    
+    returnLevelEquation = function(r,
+                                   standardError = TRUE,
+                                   units = private$data$units) {
+      params <- self$getFittedTheta()
+      return(withMathJax(
+        sprintf(
+          "$$z_{%4$.0f}=%1$0.3f+\\frac{%2$0.3f}{%3$0.3f}
+					\\left\\{
+						\\left[
+							\\log\\left(\\frac{%4$.0f}{%4$.0f-1}\\right)
+						\\right]^{-(%3$0.3f)}-1
+					\\right\\}=%5$0.2f%6$s\\text{ %7$s (to 2 decimal places).}$$",
+          params[1], #1
+          params[2], #2
+          params[3], #3
+          r, #4
+          self$returnLevel(r), #5
+          ifelse(standardError,
+                 sprintf("\\ (%.2f)", self$returnLevelSE(r)),
+                 ""), #6
+          units #7
+        )
+      ))
+    },
+    
     returnLevel = function(r) {
       private$optimiseIfNeeded()
       mu <- private$theta[1]

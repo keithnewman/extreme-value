@@ -77,6 +77,52 @@ Exponential <- R6Class(
       return(ll)
     },
     
+    probabilityCalcEquation = function(x,
+                                       timeframe,
+                                       units = private$data$units,
+                                       dataType = private$data$type) {
+      params <- self$getFittedTheta()
+      return(
+        withMathJax(
+          p(
+            sprintf(
+              "The probability of observing a %1$s greater than
+							\\(x=%2$0.2f\\) %3$s every %4$s is given by
+							$$\\mathrm{Pr}(X>%2$0.2f)=
+								\\exp(-%5$0.3f\\times{}%2$0.2f)
+								=%6$0.4f\\text{ (to 4 decimal places).}$$",
+              tolower(dataType), #1
+              x, #2
+              units, #3
+              timeframe, #4
+              params[1], #5
+              self$exceedanceProb(x) #6
+            )
+          )
+        )
+      )
+    },
+    
+    returnLevelEquation = function(r,
+                                   standardError = TRUE,
+                                   units = private$data$units) {
+      params <- self$getFittedTheta()
+      return(withMathJax(
+        sprintf(
+          "$$z_{%2$.0f}=%1$0.3f
+						\\log\\left(%2$.0f\\right)=
+						%3$0.2f%4$s\\text{ %5$s (to 2 decimal places).}$$",
+          params[1], #1
+          r, #2
+          self$returnLevel(r), #3
+          ifelse(standardError,
+                 sprintf("\\ (%.2f)", self$returnLevelSE(r)),
+                 ""), #4
+          units #5
+        )
+      ))
+    },
+    
     returnLevel = function(r) {
       private$optimiseIfNeeded()
       return(qexp(1 - (1/r), private$theta))
