@@ -358,234 +358,31 @@ shinyServer(
 		                       inputTimeframe,
 		                       inputDataType)
 
-
-		### Normal Distribution ###
-		output$dataTypeND <- renderText({tolower(input$dataType)})
-
-		normalParameterMean <- reactive({return(mean(dataset()$getData()))})
-		normalParameterSD <- reactive({return(sd(dataset()$getData()))})
-
-		normal_loglik <- function(theta) {
-			mu <- theta[1]
-			sigma <- theta[2]
-			return(-sum(dnorm(dataset()$getData(), mu, theta, log = TRUE)))
-		}
-
-		normalFit <- reactive({
-			theta <- c(normalParameterMean(), normalParameterSD())
-			return(nlm(normal_loglik, theta, hessian = TRUE))
+		### Normal Model ###
+		# Create a Normal model instance
+		normal <- reactive({
+		  return(Normal$new(dataset()))
 		})
-
-		normalParametersSE <- reactive({
-			hess <- normalFit()$hessian
-			return(sqrt(diag(solve(hess))))
-		})
-
-		output$normalTablePreamble <- renderUI({
-			withMathJax(
-				sprintf(
-					"For the data you provided, we have found that \\(\\mu=%0.3f%s\\)
-					and \\(\\sigma=%0.3f%s\\) (Both values given to 3 decimal places).",
-					normalParameterMean(),
-					ifelse(input$standardErrorNormal,
-						     sprintf(" \\left(%0.3f\\right)", normalParametersSE()[1]), ""),
-					normalParameterSD(),
-					ifelse(input$standardErrorNormal,
-					       sprintf(" \\left(%0.3f\\right)", normalParametersSE()[2]), "")
-				)
-			)
-		})
-
-		# Create data table of cumulative counts and probabilities
-		normalTable <- reactive({
-			x <- relFreqTable()$x
-			prExceedX <- 1 - pnorm(x, normalParameterMean(), normalParameterSD())
-			return(data.frame(x = x,
-			                  `Probability of exceeding x` = prExceedX,
-											  check.names = FALSE))
-		})
-
-		output$normalTable <- renderTable({normalTable()},
-		                                  include.rownames = FALSE,
-																			digits = 4)
-		outputOptions(output, "normalTable", priority = -2)
-
-		# Create a gumbel plot
-		output$normalPlot <- renderPlotly({
-			d <- allPlotData()[, c("x", "Normal")]
-			return(plot_ly(d, x = ~x, y = ~Normal) %>%
-							add_lines(line = list(shape = "spline"),
-							          name = "Normal",
-							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
-																			         input$dataUnits,
-																			         ") = %{y:.4f}")) %>%
-							layout(yaxis = list(title = "Probability")))
-		})
-		outputOptions(output, "normalPlot", priority = -2)
-
-		# Find a probability: text description
-		output$normalProbabilityDescription <- renderUI({
-			return(
-				withMathJax(
-					p(
-						sprintf(
-							"The probability of observing a %1$s greater than
-							\\(x=%2$0.2f\\) %3$s every %4$s is given by
-							$$\\mathrm{Pr}(X>%2$0.2f)=
-								1-\\Phi\\left(\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}\\right)
-								=%7$0.4f\\text{ (to 4 decimal places).}$$",
-							tolower(input$dataType), #1
-							input$normalProbabilityInput, #2
-							input$dataUnits, #3
-							input$dataTimeframe, #4
-							normalParameterMean(), #5
-							normalParameterSD(), #6
-							1 - pnorm(input$normalProbabilityInput,
-								        normalParameterMean(),
-												normalParameterSD()) #7
-						)
-					)
-				)
-			)
-		})
-		outputOptions(output, "normalProbabilityDescription", priority = -3)
-
-		# Find a wall height
-		output$normalWallHeightInput <- renderText({
-			paste(input$normalWallHeightInput, input$dataTimeframe)
-		})
-		output$normalWallHeightP <- renderUI({
-			withMathJax(
-				paste0("\\(p=", signif(1 / input$normalWallHeightInput, 4), "\\)")
-			)
-		})
-		output$normalWallHeightCalculation <- renderUI({
-			return(
-				withMathJax(
-					sprintf(
-						"$$z_{%3$.0f}=%2$0.3f\\times
-						\\Phi^{-1}\\left(\\frac{1}{%3$.0f}\\right)+%1$0.3f=
-						%4$0.2f\\text{ %5$s (to 2 decimal places).}$$",
-						normalParameterMean(), #1
-						normalParameterSD(), #2
-						input$gumbelWallHeightInput, #3
-						qnorm(1 - (1 / input$normalWallHeightInput), normalParameterMean(), normalParameterSD()), #4
-						input$dataUnits #5
-					)
-				)
-			)
-		})
-
+		
+		# Pass the GEV model to the server module
+		probabilityModelServer("Normal",
+		                       normal,
+		                       inputUnits,
+		                       inputTimeframe,
+		                       inputDataType)
+		
 		### Exponential Model ###
-		output$dataTypeExp <- renderText({tolower(input$dataType)})
-
-		expParameterMean <- reactive({return(mean(dataset()$getData()))})
-		expParameterLambda <- reactive({return(1 / expParameterMean())})
-		expParameterSD <- reactive({return(sd(dataset()$getData()))})
-		expParameterSE <- reactive({
-			return(1 / (expParameterMean() * sqrt(dataLength())))
+		# Create a Exponential model instance
+		exponential <- reactive({
+		  return(Exponential$new(dataset()))
 		})
-
-		output$expTablePreamble <- renderUI({
-			withMathJax(
-				sprintf(
-					"For the data you provided, we have found that \\(\\lambda=%0.3f%s\\)
-					(Given to 3 decimal places).",
-					expParameterLambda(),
-					ifelse(input$standardErrorExp,
-						     sprintf(" \\left(%0.3f\\right)", expParameterSE()),
-								 "")
-				)
-			)
-		})
-
-		# Create data table of cumulative counts and probabilities
-		expTable <- reactive({
-			x <- relFreqTable()$x
-			prExceedX <- 1 - pexp(x, expParameterLambda())
-			return(data.frame(x = x,
-			                  `Probability of exceeding x` = prExceedX,
-											  check.names = FALSE))
-		})
-
-		output$expTable <- renderTable({expTable()},
-		                               include.rownames = FALSE,
-																	 digits = 4)
-		outputOptions(output, "expTable", priority = -2)
-
-		# Create a gumbel plot
-		output$expPlot <- renderPlotly({
-			d <- allPlotData()[, c("x", "Exponential")]
-			return(plot_ly(d, x = ~x, y = ~Exponential) %>%
-							add_lines(line = list(shape = "spline"),
-							          name = "Exponential",
-							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
-																			         input$dataUnits,
-																			         ") = %{y:.4f}")) %>%
-							layout(yaxis = list(title = "Probability")))
-		})
-		outputOptions(output, "expPlot", priority = -2)
-
-		# Find a probability: text description
-		output$expProbabilityDescription <- renderUI({
-			return(
-				withMathJax(
-					p(
-						sprintf(
-							"The probability of observing a %1$s greater than
-							\\(x=%2$0.2f\\) %3$s every %4$s is given by
-							$$\\mathrm{Pr}(X>%2$0.2f)=
-								\\exp(-%5$0.3f\\times{}%2$0.2f)
-								=%6$0.4f\\text{ (to 4 decimal places).}$$",
-							tolower(input$dataType), #1
-							input$expProbabilityInput, #2
-							input$dataUnits, #3
-							input$dataTimeframe, #4
-							expParameterLambda(), #5
-							1 - pexp(input$expProbabilityInput, expParameterLambda()) #6
-						)
-					)
-				)
-			)
-		})
-		outputOptions(output, "expProbabilityDescription", priority = -3)
-
-		# Find a wall height
-		output$expWallHeightInput <- renderText({
-			paste(input$expWallHeightInput, input$dataTimeframe)
-		})
-		output$expWallHeightP <- renderUI({
-			withMathJax(
-				paste0("\\(p=", signif(1 / input$expWallHeightInput, 4), "\\)")
-			)
-		})
-
-		# Return Standard Errors
-		expWallSE <- reactive({
-		  del = -(expParameterMean() ^ 2) * log(input$expWallHeightInput)
-		  hess = (expParameterLambda() ^ 2) / dataLength()
-		  error = sqrt(t(del) %*% hess %*% del)
-		  return(error)
-		})
-
-		output$expWallHeightCalculation <- renderUI({
-			return(
-				withMathJax(
-					sprintf(
-						"$$z_{%2$.0f}=%1$0.3f
-						\\log\\left(%2$.0f\\right)=
-						%3$0.2f%4$s\\text{ %5$s (to 2 decimal places).}$$",
-						expParameterLambda(), #1
-						input$gumbelWallHeightInput, #2
-						expParameterMean() * log(input$expWallHeightInput), #3
-						ifelse(input$standardErrorExpWall,
-							     sprintf(" \\left(%0.2f\\right)", expWallSE()[1]),
-									 ""), #4
-						input$dataUnits #5
-					)
-				)
-			)
-		})
+		
+		# Pass the GEV model to the server module
+		probabilityModelServer("Exponential",
+		                       exponential,
+		                       inputUnits,
+		                       inputTimeframe,
+		                       inputDataType)
 
 		### Gamma Model ###
 		output$dataTypeGM <- renderText({tolower(input$dataType)})
