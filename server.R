@@ -384,6 +384,9 @@ shinyServer(
 		})
 
 		####### Probability model page ###########
+		# TPGM
+		probabilityModelServer("Gumbel", gumbel, dataset()$units, input$dataTimeframe, input$dataType)
+		
 		### Two parameter Gumbel Model ###
 		output$dataTypeTPGM <- renderText({tolower(input$dataType)})
 		
