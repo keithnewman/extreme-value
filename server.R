@@ -327,294 +327,37 @@ shinyServer(
 		})
 
 		####### Probability model page ###########
-		# TPGM
-		probabilityModelServer("Gumbel",
-		                       gumbel,
-		                       reactive({input$dataUnits}),
-		                       reactive({input$dataTimeframe}),
-		                       reactive({input$dataType}))
-		
+
 		### Two parameter Gumbel Model ###
-		output$dataTypeTPGM <- renderText({tolower(input$dataType)})
-		
 		# Create a Gumbel model instance
 		gumbel <- reactive({
 		  return(Gumbel$new(dataset()))
 		})
-
-		#' #' Negative log-likelihood for the Gumbel model
-		#' gumbel.loglik <- function(theta) {
-		#' 	mu <- theta[1]
-		#' 	sigma <- theta[2]
-		#' 	loglik <- -length(dataset()$getData()) * log(sigma) -
-		#' 							sum(exp(-((dataset()$getData() - mu) / sigma))) -
-		#' 							sum((dataset()$getData() - mu) / sigma)
-		#' 	return(-loglik)
-		#' }
-		#' 
-		#' pegumbel <- function(x, mu, sigma) {
-		#' 	return(1 - exp(-exp(-((x - mu) / sigma))))
-		#' }
-		#' 
-		#' #' Find the maximum likelihood estimates of the Gumbel distribution
-		#' gumbelFit <- reactive({
-		#' 	#set initial values for the parameter vector theta=c(mu,sigma)
-		#' 	theta <- c(mean(dataset()$getData()), sd(dataset()$getData()))
-		#' 	return(nlm(gumbel.loglik, theta, hessian=TRUE))
-		#' })
-		gumbelParameters <- reactive(gumbel()$getFittedTheta())
-		gumbelParametersSE <- reactive(gumbel()$getSE())
-
-		output$gumbelTablePreamble <- renderUI({
-		  params <- gumbelParameters()
-		  se <- gumbelParametersSE()
-			withMathJax(
-				sprintf(
-					"For the data you provided, we have found that \\(\\mu=%0.3f%s\\)
-					and \\(\\sigma=%0.3f%s\\) (Both values given to 3 decimal places).",
-					params[1],
-					ifelse(input$standardErrorGumbel, sprintf(" \\left(%0.3f\\right)", se[1]), ""),
-					params[2],
-					ifelse(input$standardErrorGumbel, sprintf(" \\left(%0.3f\\right)", se[2]), "")
-				)
-			)
-		})
-
-		# Create data table of cumulative counts and probabilities
-		output$gumbelTable <- renderTable(gumbel()$tableOfProbabilities(),
-		                                  include.rownames = FALSE,
-		                                  digits = 4)
-		outputOptions(output, "gumbelTable", priority = -2)
-
-		# Create a gumbel plot
-		output$gumbelPlot <- renderPlotly(gumbel()$plotly())
-		outputOptions(output, "gumbelPlot", priority = -2)
-
-		# Find a probability: text description
-		output$gumbelProbabilityDescription <- renderUI({
-			return(
-				withMathJax(
-					p(
-						sprintf(
-							"The probability of observing a %1$s greater than
-							\\(x=%2$0.2f\\) %3$s every %4$s is given by
-							$$\\mathrm{Pr}(X>%2$0.2f)=
-								1-\\exp\\left[
-									-\\exp\\left\\{
-										-\\left(
-											\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}
-										\\right)
-									\\right\\}
-								\\right]=%7$0.4f\\text{ (to 4 decimal places).}$$",
-							tolower(input$dataType), #1
-							input$gumbelProbabilityInput, #2
-							input$dataUnits, #3
-							input$dataTimeframe, #4
-							gumbelParameters()[1], #5
-							gumbelParameters()[2], #6
-							gumbel()$exceedanceProb(input$gumbelProbabilityInput) #7
-						)
-					)
-				)
-			)
-		})
-		outputOptions(output,
-			"gumbelProbabilityDescription", priority = -3, suspendWhenHidden = TRUE
-		)
-
-		# Find a wall height
-		output$gumbelWallHeightInput <- renderText({
-			paste(input$gumbelWallHeightInput, input$dataTimeframe)
-		})
-		output$gumbelWallHeightP <- renderUI({
-			withMathJax(
-				paste0("\\(p=", signif(1 / input$gumbelWallHeightInput, 4), "\\)")
-			)
-		})
-
-		# Return Standard Errors
-		# gumbelWallSE <- reactive({
-		# 	hess <- solve(gumbelFit()$hessian)
-		# 	del <- matrix(c(1, -log(-log(1 - (1 / input$gumbelWallHeightInput)))),
-		# 	              ncol = 1, nrow = 2)
-		# 	error = sqrt(t(del) %*% hess %*% del)
-		# 	return(error)
-		# })
-
-		output$gumbelWallHeightCalculation <- renderUI({
-			return(withMathJax(
-				sprintf(
-					"$$z_{%3$.0f}=%1$0.3f-%2$0.3f\\log\\left[
-						-\\log\\left(1-\\frac{1}{%3$.0f}\\right)
-					\\right]=%4$0.2f%5$s\\text{ %6$s (to 2 decimal places).}$$",
-					gumbelParameters()[1], #1
-					gumbelParameters()[2], #2
-					input$gumbelWallHeightInput, #3
-					gumbel()$returnLevel(input$gumbelWallHeightInput), #4
-					ifelse(input$standardErrorGumbelWall,
-						     sprintf("\\ (%.2f)",
-						             gumbel()$returnLevelSE(input$gumbelWallHeightInput)),
-						     ""), #5
-					input$dataUnits #6
-				)
-			))
-		})
-
+		
+		inputUnits <- reactive({input$dataUnits})
+		inputTimeframe <- reactive({input$dataTimeframe})
+		inputDataType <- reactive({input$dataType})
+		
+		# Pass the Gumbel model to the server module
+		probabilityModelServer("Gumbel",
+		                       gumbel,
+		                       inputUnits,
+		                       inputTimeframe,
+		                       inputDataType)
+		
 		### Generalised Extreme Value Model ###
-		output$dataTypeGEV <- renderText({tolower(input$dataType)})
-
-		#' Negative log-likelihood for the GEV model
-		GEV.loglik <- function(theta){
-			mu <- theta[1]
-			sigma <- theta[2]
-			xi <- theta[3]
-			m <- min((1 + (xi * (dataset()$getData() - mu) / sigma)))
-			delta <- sqrt(.Machine$double.eps)
-			if (m < delta) return(.Machine$double.xmax)
-			if (sigma < delta) return(.Machine$double.xmax)
-			if (xi == 0) {
-				loglik = -length(dataset()$getData()) * log(sigma) - sum((dataset()$getData() - mu) / sigma) - sum(exp(-((dataset()$getData() - mu) / sigma)))
-			} else {
-				loglik = -length(dataset()$getData()) * log(sigma) - (1 / xi + 1) * sum(log(1 + (xi * (dataset()$getData() - mu) / sigma))) - sum((1 + (xi * (dataset()$getData() - mu) / sigma)) ** (-1 / xi))
-			}
-			return(-loglik)
-		}
-
-		pegev <- function(x, mu, sigma, xi) {
-			return(1 - exp(-(1 + xi * ((x - mu) / sigma)) ^ (-1 / xi)))
-		}
-
-		#' Find the maximum likelihood estimates of the Gumbel distribution
-		gevFit <- reactive({
-			#set initial values for the parameter vector theta=c(mu, sigma, xi)
-			theta <- c(mean(dataset()$getData()), sd(dataset()$getData()), 0.1)
-			return(nlm(GEV.loglik, theta, hessian=TRUE))
+		# Create a GEV model instance
+		gev <- reactive({
+		  return(GEV$new(dataset()))
 		})
-		gevParameters <- reactive({gevFit()$est})
-		gevParametersSE <- reactive({
-			hess <- gevFit()$hessian
-			errors <- sqrt(diag(solve(hess)))
-			return(errors)
-		})
+		
+		# Pass the GEV model to the server module
+		probabilityModelServer("GEV",
+		                       gev,
+		                       inputUnits,
+		                       inputTimeframe,
+		                       inputDataType)
 
-		output$GEVTablePreamble <- renderUI({
-			withMathJax(
-				sprintf(
-					"For the data you provided, we have found that \\(\\mu=%0.3f%s\\)
-					\\(\\sigma=%0.3f%s\\) and \\(\\xi=%0.3f%s\\)
-					(All values given to 3 decimal places).",
-					gevParameters()[1],
-					ifelse(input$standardErrorGEV, sprintf(" \\left(%0.3f\\right)", gevParametersSE()[1]), ""),
-					gevParameters()[2],
-					ifelse(input$standardErrorGEV, sprintf(" \\left(%0.3f\\right)", gevParametersSE()[2]), ""),
-					gevParameters()[3],
-					ifelse(input$standardErrorGEV, sprintf(" \\left(%0.3f\\right)", gevParametersSE()[3]), "")
-				)
-			)
-		})
-
-		# Create data table of cumulative counts and probabilities
-		GEVTable <- reactive({
-			x <- relFreqTable()$x
-			prExceedX <- pegev(x,
-				                 gevParameters()[1],
-				                 gevParameters()[2],
-				                 gevParameters()[3])
-			return(data.frame(x = x,
-			                  `Probability of exceeding x` = prExceedX,
-											  check.names = FALSE))
-		})
-		output$GEVTable <- renderTable({GEVTable()},
-		                               include.rownames = FALSE,
-																	 digits = 4)
-		outputOptions(output, "GEVTable", priority = -2)
-
-		# Create a GEV plot
-		output$GEVPlot <- renderPlotly({
-			d <- allPlotData()[, c("x", "GEV")]
-			return(plot_ly(d, x = ~x, y = ~GEV) %>%
-							add_lines(line = list(shape = "spline"),
-							          name = "GEV",
-							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
-																			         input$dataUnits,
-																			         ") = %{y:.4f}")) %>%
-							layout(yaxis = list(title = "Probability")))
-		})
-		outputOptions(output, "GEVPlot", priority = -2)
-
-		# Find a probability: text description
-		output$GEVProbabilityDescription <- renderUI({
-			return(
-				withMathJax(
-					p(
-						sprintf(
-							"The probability of observing a %1$s greater than
-							\\(x=%2$0.2f\\) %3$s every %4$s is given by
-							$$\\mathrm{Pr}(X>%2$0.2f)=
-								1-\\exp\\left\\{-\\left[1+%7$0.3f
-									-\\left(
-										\\frac{%2$0.2f-%5$0.3f}{%6$0.3f}
-									\\right)\\right]^{-\\frac{1}{%7$0.3f}}
-								\\right\\}
-								=%8$0.4f\\text{ (to 4 decimal places).}$$",
-							tolower(input$dataType), #1
-							input$GEVProbabilityInput, #2
-							input$dataUnits, #3
-							input$dataTimeframe, #4
-							gevParameters()[1], #5
-							gevParameters()[2], #6
-							gevParameters()[3], #7
-							gev()$exceedanceProb(input$GEVProbabilityInput) #8
-						)
-					)
-				)
-			)
-		})
-		outputOptions(output, "GEVProbabilityDescription", priority = -3)
-
-		# Find a wall height
-		output$GEVWallHeightInput <- renderText({
-			paste(input$GEVWallHeightInput, input$dataTimeframe)
-		})
-		output$GEVWallHeightP <- renderUI({
-			withMathJax(
-				paste0("\\(p=", signif(1 / input$GEVWallHeightInput, 4), "\\)")
-			)
-		})
-
-		# Return Standard Errors
-		gevWallSE <- reactive({
-			hess <- solve(gevFit()$hessian)
-			est <- gevParameters()
-			y = -log(1 - (1 / input$GEVWallHeightInput))
-			del = matrix(c(1,
-			               -(est[3]^(-1)) * (1 - y^(-est[3])),
-									   (est[2] * est[3]^(-2) * (1 - y^(-est[3]))) -
-										   (est[2] * est[3]^(-1) * y^(-est[3]) * log(y))),
-			             ncol = 1, nrow = 3)
-			error = sqrt(t(del) %*% hess %*% del)
-			return(error)
-		})
-
-		output$GEVWallHeightCalculation <- renderUI({
-			return(withMathJax(
-				sprintf(
-					"$$z_{%4$.0f}=%1$0.3f+\\frac{%2$0.3f}{%3$0.3f}
-					\\left\\{
-						\\left[
-							\\log\\left(\\frac{%4$.0f}{%4$.0f-1}\\right)
-						\\right]^{-(%3$0.3f)}-1
-					\\right\\}=%5$0.2f%6$s\\text{ %7$s (to 2 decimal places).}$$",
-					gevParameters()[1], #1
-					gevParameters()[2], #2
-					gevParameters()[3], #3
-					input$gumbelWallHeightInput, #4
-					gevParameters()[1] + ((gevParameters()[2] / gevParameters()[3]) * ((log(input$GEVWallHeightInput / (input$GEVWallHeightInput - 1))) ^ (-gevParameters()[3]) - 1)), #5
-					ifelse(input$standardErrorGEVWall, sprintf(" (%0.2f)", gevWallSE()[1]), ""), #6
-					input$dataUnits #7
-				)
-			))
-		})
 
 		### Normal Distribution ###
 		output$dataTypeND <- renderText({tolower(input$dataType)})

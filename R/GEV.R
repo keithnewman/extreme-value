@@ -16,9 +16,48 @@ GEV <- R6Class(
       private$DISTRIBUTION_NAME = "GEV"
     },
     
+    description = function(dataType = private$data$type) {
+      tagList(
+        withMathJax(
+          p(sprintf(
+            "The probability of %s exceeding a threshold \\(x\\)
+            is given by the formula,
+							$$\\mathrm{Pr}(X>x)=1-\\exp\\left\\{-\\left[1+\\xi\\left(\\frac{x-\\mu}{\\sigma}\\right)\\right]^{-\\frac{1}{\\xi}}\\right\\}\\text{,}$$
+										where:", tolower(dataType)),
+            tags$ul(
+              tags$li("\\(\\mu\\) is the ", em("location"), " parameter,"),
+              tags$li("\\(\\sigma\\) is the ", em("scale"), " parameter,"),
+              tags$li("\\(\\xi\\) is the ", em("shape"), " parameter,"),
+              tags$li("\\(X\\) is our ", em("random variable"), ","),
+              tags$li("\\(x\\) is the ", em("value"), " of our random variable,"),
+              tags$li("\\(\\exp\\) is the ", em("exponential function"), ".")
+            )
+          )
+        )
+      )
+    },
+    
     exceedanceProb = function(x) {
       private$optimiseIfNeeded()
-      return(1 - exp(-(1 + xi * ((x - private$theta[1])/private$theta[2]))^(-1/private$theta[3])))
+      return(1 - exp(-(1 + private$theta[3] * ((x - private$theta[1])/private$theta[2]))^(-1/private$theta[3])))
+    },
+    
+    fittedParameterDescription = function(showStandardError = TRUE) {
+      params <- super$getFittedTheta()
+      se <- super$getSE()
+      withMathJax(p(
+        sprintf(
+          "For the data you provided, we have found that \\(\\mu=%0.3f%s\\),
+					\\(\\sigma=%0.3f%s\\) and \\(\\xi=%0.3f%s\\)
+					(All values given to 3 decimal places).",
+          params[1],
+          ifelse(showStandardError, sprintf(" \\left(%0.3f\\right)", se[1]), ""),
+          params[2],
+          ifelse(showStandardError, sprintf(" \\left(%0.3f\\right)", se[2]), ""),
+          params[3],
+          ifelse(showStandardError, sprintf(" \\left(%0.3f\\right)", se[3]), "")
+        )
+      ))
     },
     
     logLikelihood = function(theta, negative = FALSE) {
@@ -63,7 +102,7 @@ GEV <- R6Class(
                       -(xi^(-1)) * (1 - y^(-xi)),
                       (sigma * xi^(-2) * (1 - y^(-xi))) -
                         (sigma * xi^(-1) * y^(-xi) * log(y))),
-                    ncol = 1, nrow = 2)
+                    ncol = 1, nrow = 3)
       se <- sqrt(t(del) %*% h %*% del)
       return(se)
     },
