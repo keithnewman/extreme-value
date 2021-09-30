@@ -103,27 +103,6 @@ Dataset <- R6Class("Dataset",
   )
 )
 
-DataFromString <- R6Class(
-  "DataFromString",
-  inherit = Dataset,
-  public = list(
-    initialize = function(dataString, units) {
-      self$setData(dataString)
-      super$setUnits(units)
-      invisible(self)
-    },
-    
-    setData = function(dataString) {
-      assertthat::assert_that(is.character(dataString))
-      invisible(
-        super$setData(
-          na.omit(as.numeric(strsplit(dataString, "[/,/;/ \n]+")[[1]]))
-        )
-      )
-    }
-  )
-)
-
 DataFromFile <- R6Class(
   "DataFromFile",
   inherit = Dataset,
