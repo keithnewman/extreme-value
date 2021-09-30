@@ -386,73 +386,58 @@ shinyServer(
 		####### Probability model page ###########
 		### Two parameter Gumbel Model ###
 		output$dataTypeTPGM <- renderText({tolower(input$dataType)})
-
-		#' Negative log-likelihood for the Gumbel model
-		gumbel.loglik <- function(theta) {
-			mu <- theta[1]
-			sigma <- theta[2]
-			loglik <- -length(dataset()$getData()) * log(sigma) -
-									sum(exp(-((dataset()$getData() - mu) / sigma))) -
-									sum((dataset()$getData() - mu) / sigma)
-			return(-loglik)
-		}
-
-		pegumbel <- function(x, mu, sigma) {
-			return(1 - exp(-exp(-((x - mu) / sigma))))
-		}
-
-		#' Find the maximum likelihood estimates of the Gumbel distribution
-		gumbelFit <- reactive({
-			#set initial values for the parameter vector theta=c(mu,sigma)
-			theta <- c(mean(dataset()$getData()), sd(dataset()$getData()))
-			return(nlm(gumbel.loglik, theta, hessian=TRUE))
+		
+		# Create a Gumbel model instance
+		gumbel <- reactive({
+		  return(Gumbel$new(dataset()))
 		})
-		gumbelParameters <- reactive({gumbelFit()$est})
-		gumbelParametersSE <- reactive({
-			hess <- gumbelFit()$hessian
-			errors <- sqrt(diag(solve(hess)))
-			return(errors)
-		})
+
+		#' #' Negative log-likelihood for the Gumbel model
+		#' gumbel.loglik <- function(theta) {
+		#' 	mu <- theta[1]
+		#' 	sigma <- theta[2]
+		#' 	loglik <- -length(dataset()$getData()) * log(sigma) -
+		#' 							sum(exp(-((dataset()$getData() - mu) / sigma))) -
+		#' 							sum((dataset()$getData() - mu) / sigma)
+		#' 	return(-loglik)
+		#' }
+		#' 
+		#' pegumbel <- function(x, mu, sigma) {
+		#' 	return(1 - exp(-exp(-((x - mu) / sigma))))
+		#' }
+		#' 
+		#' #' Find the maximum likelihood estimates of the Gumbel distribution
+		#' gumbelFit <- reactive({
+		#' 	#set initial values for the parameter vector theta=c(mu,sigma)
+		#' 	theta <- c(mean(dataset()$getData()), sd(dataset()$getData()))
+		#' 	return(nlm(gumbel.loglik, theta, hessian=TRUE))
+		#' })
+		gumbelParameters <- reactive(gumbel()$getFittedTheta())
+		gumbelParametersSE <- reactive(gumbel()$getSE())
 
 		output$gumbelTablePreamble <- renderUI({
+		  params <- gumbelParameters()
+		  se <- gumbelParametersSE()
 			withMathJax(
 				sprintf(
 					"For the data you provided, we have found that \\(\\mu=%0.3f%s\\)
 					and \\(\\sigma=%0.3f%s\\) (Both values given to 3 decimal places).",
-					gumbelParameters()[1],
-					ifelse(input$standardErrorGumbel, sprintf(" \\left(%0.3f\\right)", gumbelParametersSE()[1]), ""),
-					gumbelParameters()[2],
-					ifelse(input$standardErrorGumbel, sprintf(" \\left(%0.3f\\right)", gumbelParametersSE()[2]), "")
+					params[1],
+					ifelse(input$standardErrorGumbel, sprintf(" \\left(%0.3f\\right)", se[1]), ""),
+					params[2],
+					ifelse(input$standardErrorGumbel, sprintf(" \\left(%0.3f\\right)", se[2]), "")
 				)
 			)
 		})
 
 		# Create data table of cumulative counts and probabilities
-		gumbelTable <- reactive({
-			x <- relFreqTable()$x
-			prExceedX <- pegumbel(x,
-													  mu = gumbelParameters()[1],
-													  sigma = gumbelParameters()[2])
-			return(data.frame(x = x,
-			                  `Probability of exceeding x` = prExceedX,
-											  check.names = FALSE))
-		})
-		output$gumbelTable <- renderTable({return(gumbelTable())},
+		output$gumbelTable <- renderTable(gumbel()$tableOfProbabilities(),
 		                                  include.rownames = FALSE,
 		                                  digits = 4)
 		outputOptions(output, "gumbelTable", priority = -2)
 
 		# Create a gumbel plot
-		output$gumbelPlot <- renderPlotly({
-			d <- allPlotData()[, c("x", "Gumbel")]
-			return(plot_ly(d, x = ~x, y = ~Gumbel) %>%
-							add_lines(line = list(shape = "spline"),
-							          name = "Gumbel",
-							          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
-																			         input$dataUnits,
-																			         ") = %{y:.4f}")) %>%
-							layout(yaxis = list(title = "Probability")))
-		})
+		output$gumbelPlot <- renderPlotly(gumbel()$plotly())
 		outputOptions(output, "gumbelPlot", priority = -2)
 
 		# Find a probability: text description
@@ -477,9 +462,7 @@ shinyServer(
 							input$dataTimeframe, #4
 							gumbelParameters()[1], #5
 							gumbelParameters()[2], #6
-							pegumbel(input$gumbelProbabilityInput,
-								       gumbelParameters()[1],
-											 gumbelParameters()[2]) #7
+							gumbel()$exceedanceProb(input$gumbelProbabilityInput) #7
 						)
 					)
 				)
@@ -500,13 +483,13 @@ shinyServer(
 		})
 
 		# Return Standard Errors
-		gumbelWallSE <- reactive({
-			hess <- solve(gumbelFit()$hessian)
-			del <- matrix(c(1, -log(-log(1 - (1 / input$gumbelWallHeightInput)))),
-			              ncol = 1, nrow = 2)
-			error = sqrt(t(del) %*% hess %*% del)
-			return(error)
-		})
+		# gumbelWallSE <- reactive({
+		# 	hess <- solve(gumbelFit()$hessian)
+		# 	del <- matrix(c(1, -log(-log(1 - (1 / input$gumbelWallHeightInput)))),
+		# 	              ncol = 1, nrow = 2)
+		# 	error = sqrt(t(del) %*% hess %*% del)
+		# 	return(error)
+		# })
 
 		output$gumbelWallHeightCalculation <- renderUI({
 			return(withMathJax(
@@ -517,9 +500,11 @@ shinyServer(
 					gumbelParameters()[1], #1
 					gumbelParameters()[2], #2
 					input$gumbelWallHeightInput, #3
-					gumbelParameters()[1] - gumbelParameters()[2] * log(-log(1 - (1 / input$gumbelWallHeightInput))), #4
+					gumbel()$returnLevel(input$gumbelWallHeightInput), #4
 					ifelse(input$standardErrorGumbelWall,
-						     sprintf("\\ (%.2f)", gumbelWallSE()), ""), #5
+						     sprintf("\\ (%.2f)",
+						             gumbel()$returnLevelSE(input$gumbelWallHeightInput)),
+						     ""), #5
 					input$dataUnits #6
 				)
 			))
