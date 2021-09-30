@@ -57,8 +57,8 @@ Dataset <- R6Class("Dataset",
       return(summary_)
     },
     
-    summaryPlotly = function() {
-      xlabel <- paste0(self$type, " maxima (", self$units, ")")
+    summaryPlotly = function(units = self$units, dataType = self$type) {
+      xlabel <- paste0(dataType, " maxima (", units, ")")
       hist_ <- plot_ly(private$data, x = ~x, type = "histogram", name = xlabel) %>%
         layout(xaxis = list(title = xlabel),
                yaxis = list(title = "Frequency",

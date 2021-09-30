@@ -45,13 +45,13 @@ EVModel <- R6Class(
       return(sqrt(diag(solve(private$hess))))
     },
     
-    plotly = function() {
+    plotly = function(units = private$data$units) {
       private$optimiseIfNeeded()
       return(plot_ly(private$plotData, x = ~x, y = ~y) %>%
                add_lines(line = list(shape = "spline"),
                          name = private$DISTRIBUTION_NAME,
                          hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
-                                                private$data$units,
+                                                units,
                                                 ") = %{y:.4f}")) %>%
                layout(yaxis = list(title = "Probability")))
     },

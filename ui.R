@@ -323,7 +323,7 @@ shinyUI(
 				h1("Probability Model"),
 				tabsetPanel(type = "tabs", id = "model-tabs",
 				  tabPanel("Two-parameter Gumbel Model",
-				    probabilityModelUI("Gumbel", "Two-parameter Gumbel model.")
+				    probabilityModelUI("Gumbel", "Two-parameter Gumbel Model")
 				  ),
 					tabPanel("Two-parameter Gumbel Model (orig.)",
 						h2("Two-parameter Gumbel Model"),

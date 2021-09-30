@@ -5,6 +5,7 @@
 
 library(R6)
 library(assertthat)
+library(shiny)
 
 Gumbel <- R6Class(
   "Gumbel",
@@ -16,9 +17,50 @@ Gumbel <- R6Class(
       private$DISTRIBUTION_NAME = "Gumbel"
     },
     
+    description = function(dataType = private$data$type) {
+      tagList(
+        withMathJax(
+          p(sprintf(
+            "The probability of %s exceeding a threshold \\(x\\)
+            is given by the formula,
+							$$\\mathrm{Pr}(X > x) =
+							  1 - \\exp\\left\\{
+							    -\\exp\\left[
+							      -\\left(
+							        \\frac{x - \\mu}{\\sigma}
+							      \\right)
+							   \\right]
+							 \\right\\}\\text{,}$$
+						where:", tolower(dataType))),
+          tags$ul(
+            tags$li("\\(\\mu\\) is the ", em("location"), " parameter,"),
+            tags$li("\\(\\sigma\\) is the ", em("scale"), " parameter,"),
+            tags$li("\\(X\\) is our ", em("random variable"), ","),
+            tags$li("\\(x\\) is the ", em("value"), " of our random variable,"),
+            tags$li("\\(\\exp\\) is the ", em("exponential function"), ".")
+          )
+        )
+      )
+    },
+    
     exceedanceProb = function(x) {
       private$optimiseIfNeeded()
       return(1 - exp(-exp(-((x - private$theta[1]) / private$theta[2]))))
+    },
+    
+    fittedParameterDescription = function(showStandardError = TRUE) {
+      params <- super$getFittedTheta()
+      se <- super$getSE()
+      withMathJax(p(
+        sprintf(
+          "For the data you provided, we have found that \\(\\mu=%0.3f%s\\)
+					and \\(\\sigma=%0.3f%s\\) (Both values given to 3 decimal places).",
+          params[1],
+          ifelse(showStandardError, sprintf(" \\left(%0.3f\\right)", se[1]), ""),
+          params[2],
+          ifelse(showStandardError, sprintf(" \\left(%0.3f\\right)", se[2]), "")
+        )
+      ))
     },
     
     logLikelihood = function(theta, negative = FALSE) {

@@ -11,20 +11,7 @@ probabilityModelUI <- function(id, title = "Probability Model") {
         class = "panel-heading"
       ),
       div(
-        withMathJax(
-          p("The probability of a",
-            textOutput(ns("dataTypeTPGM"), inline = T),
-            "exceeding a threshold \\(x\\) is given by the formula,
-										$$\\mathrm{Pr}(X>x)=1-\\exp\\left[-\\exp\\left\\{-\\left(\\frac{x-\\mu}{\\sigma}\\right)\\right\\}\\right]\\text{,}$$
-										where:"),
-          tags$ul(
-            tags$li("\\(\\mu\\) is the ", em("location"), " parameter,"),
-            tags$li("\\(\\sigma\\) is the ", em("scale"), " parameter,"),
-            tags$li("\\(X\\) is our ", em("random variable"), ","),
-            tags$li("\\(x\\) is the ", em("value"), " of our random variable,"),
-            tags$li("\\(\\exp\\) is the ", em("exponential function"), ".")
-          )
-        ),
+        uiOutput(ns("modelDescription")),
         checkboxInput(ns("standardError"), "Include Standard Errors", FALSE),
         uiOutput(ns("tablePreamble")),
         class = "panel-body"
@@ -63,7 +50,7 @@ probabilityModelUI <- function(id, title = "Probability Model") {
       column(6,
              div(
                div(
-                 h3(textOutput(ns("howExtremeText2")), class = "panel-title"),
+                 h3(textOutput(ns("howExtremeText")), class = "panel-title"),
                  class = "panel-heading"
                ),
                div(
@@ -103,30 +90,41 @@ probabilityModelServer <- function(id, model, units, timeframe, dataType) {
       modelParameters <- reactive({model()$getFittedTheta()})
       modelParametersSE <- reactive({model()$getSE()})
       
+      output$modelDescription <- renderUI({model()$description()})
+      
       output$tablePreamble <- renderUI({
-        params <- modelParameters()
-        se <- modelParametersSE()
-        withMathJax(
-          sprintf(
-            "For the data you provided, we have found that \\(\\mu=%0.3f%s\\)
-					and \\(\\sigma=%0.3f%s\\) (Both values given to 3 decimal places).",
-            params[1],
-            ifelse(input$standardError, sprintf(" \\left(%0.3f\\right)", se[1]), ""),
-            params[2],
-            ifelse(input$standardError, sprintf(" \\left(%0.3f\\right)", se[2]), "")
-          )
-        )
+        model()$fittedParameterDescription(input$standardError)
       })
       
       # Create data table of cumulative counts and probabilities
-      output$table <- renderTable(model()$tableOfProbabilities(),
-                                        include.rownames = FALSE,
-                                        digits = 4)
+      tableOfProbabilities <- reactive({model()$tableOfProbabilities()})
+      output$table <- renderTable(tableOfProbabilities(),
+                                  include.rownames = FALSE,
+                                  digits = 4)
       outputOptions(output, "table", priority = -2)
       
       # Create a gumbel plot
-      output$plot <- renderPlotly(model()$plotly())
+      output$plot <- renderPlotly({model()$plotly(units())})
       outputOptions(output, "plot", priority = -2)
+      
+      output$howExtremeText <- renderText({
+        switch(dataType(),
+               "Wave height" = sprintf("How high should we build a wall to protect from a \"once in a \u2026 %s storm\"?", timeframe()),
+               sprintf("How extreme would we expect the %s to be \"once every \u2026 %s\"?", tolower(dataType()), timeframe())  # Default text if nothing else matches
+        )
+      })
+      
+      observe({
+        req(model())
+        label <- paste("Choose a", tolower(dataType()),
+                       "to find the probability of exceeding it every",
+                       timeframe())
+        sliderRange <- range(tableOfProbabilities()$x)
+        min <- max(0, sliderRange[1] - 2)
+        max <- max(0, sliderRange[2] + 3)
+        value <- round(runif(1, sliderRange[1], sliderRange[2]), 1)
+        updateSliderInput(session, "probabilityInput", label, value, min, max)
+      })
       
       # Find a probability: text description
       output$probabilityDescription <- renderUI({
@@ -144,10 +142,10 @@ probabilityModelServer <- function(id, model, units, timeframe, dataType) {
 										\\right)
 									\\right\\}
 								\\right]=%7$0.4f\\text{ (to 4 decimal places).}$$",
-                tolower(dataType), #1
+                tolower(dataType()), #1
                 input$probabilityInput, #2
-                units, #3
-                timeframe, #4
+                units(), #3
+                timeframe(), #4
                 modelParameters()[1], #5
                 modelParameters()[2], #6
                 model()$exceedanceProb(input$probabilityInput) #7
@@ -156,13 +154,12 @@ probabilityModelServer <- function(id, model, units, timeframe, dataType) {
           )
         )
       })
-      outputOptions(output,
-                    "probabilityDescription", priority = -3, suspendWhenHidden = TRUE
-      )
+      outputOptions(output, "probabilityDescription",
+                    priority = -3, suspendWhenHidden = TRUE)
       
       # Find a wall height
       output$wallHeightInput <- renderText({
-        paste(input$gumbelWallHeightInput, input$dataTimeframe)
+        paste(input$wallHeightInput, timeframe())
       })
       output$wallHeightP <- renderUI({
         withMathJax(
@@ -193,7 +190,7 @@ probabilityModelServer <- function(id, model, units, timeframe, dataType) {
                    sprintf("\\ (%.2f)",
                            model()$returnLevelSE(input$wallHeight)),
                    ""), #5
-            units #6
+            units() #6
           )
         ))
       })
