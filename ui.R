@@ -254,72 +254,9 @@ shinyUI(
 					)
 				)
 			), # End of Data upload tab
-			tabPanel("Relative frequency",
-				h1("Relative Frequency"),
-				div(
-					div(
-						h3("How probability is calculated using relative frequency", class = "panel-title"),
-						class = "panel-heading"
-					),
-					div(
-						uiOutput("RFtablePreamble"),
-						class = "panel-body"
-					),
-					class = "panel panel-info"
-				),
-				fluidRow(
-					column(4,
-						h3("Table of probabilities"),
-						tableOutput("RFtable")
-					),
-					column(8,
-						h3("Plot of probabilities"),
-						plotlyOutput("RFplot")
-					)
-				),
-				fluidRow(
-					column(6,
-						div(
-							div(
-								h3("Calculate a probability from this model", class = "panel-title"),
-								class = "panel-heading"
-							),
-							div(
-								wellPanel(
-									sliderInput("RFProbabilityInput",
-									            label = "Upload data to begin",
-									            min = 0, max = 1, value = 0, step = 0.05)
-								),
-								uiOutput("RFProbabilityDescription"),
-								class = "panel-body"
-							),
-							class = "panel panel-primary"
-						)
-					),
-					column(6,
-						div(
-							div(
-								h3(textOutput("howExtremeText1"), class = "panel-title"),
-								class = "panel-heading"
-							),
-							div(
-								wellPanel(
-									sliderInput("RFWallHeightInput",
-										label = "How extreme will the event be?",
-										min = 2, max = 1000, value = 100
-									)
-								),
-								p("A once in a ",textOutput("RFWallHeightInput",,T)," event corresponds to an exceedance probability ",htmlOutput("RFWallHeightP",T), " (to 4 significant figures)."),
-								withMathJax(
-									textOutput("howExtremeAnswerPreamble1"),
-									uiOutput("RFWallHeightCalculation",T)
-								),
-								class = "panel-body"
-							),
-							class = "panel panel-primary"
-						)
-					)
-				)
+			tabPanel(
+			  "Relative frequency",
+			  probabilityModelUI("RelativeFrequency", "Relative Frequency")
 			), # End of Relative Frequency tab
 			tabPanel("Probability Model",
 				h1("Probability Model"),

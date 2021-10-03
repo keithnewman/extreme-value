@@ -91,241 +91,31 @@ shinyServer(
 		  dataset()$summaryPlotly(input$dataUnits, input$dataType)
 		})
 		outputOptions(output, "exploratoryPlots", priority = -1)
+
+		inputUnits <- reactive({input$dataUnits})
+		inputTimeframe <- reactive({input$dataTimeframe})
+		inputDataType <- reactive({input$dataType})
 		
-
-		# Break points needed for plotting histogram and Relative Frequency table
-		dataPrettyBreaks <- reactive({
-			return(pretty(x = dataset()$getData(),
-			              n = 2 * nclass.FD(dataset()$getData())))
-		})
-
-		# Based on the type of the input data, we need to adjust text that appears
-		# on the page
-		howExtremeTextGenerator <- reactive({
-			return(
-				switch(input$dataType,
-					"Wave height" = "How high should we build a wall?",
-					"How extreme could it get?"  # Default text if nothing else matches
-				)
-			)
-		})
-
-		observe({
-			req(dataset())
-			label <- paste("Choose a", input$dataType,
-			               "to find the probability of exceeding it every",
-			               input$dataTimeframe)
-			sliderRange <- range(relFrequencyPlotData()$x)
-			min <- max(0, sliderRange[1] - 2)
-      max <- max(0, sliderRange[2] + 3)
-      value <- round(runif(1, sliderRange[1], sliderRange[2]), 1)
-			updateSliderInput(session, "RFProbabilityInput", label, value, min, max)
-			updateSliderInput(session, "gumbelProbabilityInput", label, value, min, max)
-			updateSliderInput(session, "GEVProbabilityInput", label, value, min, max)
-			updateSliderInput(session, "normalProbabilityInput", label, value, min, max)
-			updateSliderInput(session, "expProbabilityInput", label, value, min, max)
-			updateSliderInput(session, "gammaProbabilityInput", label, value, min, max)
-		})
-
-		output$dataUnit <- renderText(input$dataUnits)
-		# Need one of each of these per box in the app
-		output$howExtremeText1 <- renderText({howExtremeTextGenerator()})
-		output$howExtremeText2 <- renderText({howExtremeTextGenerator()})
-		output$howExtremeText3 <- renderText({howExtremeTextGenerator()})
-		output$howExtremeText4 <- renderText({howExtremeTextGenerator()})
-		output$howExtremeText5 <- renderText({howExtremeTextGenerator()})
-		output$howExtremeText6 <- renderText({howExtremeTextGenerator()})
-
-
-		# Label for the input slider
-		howExtremesliderInputLabelGenerator <- reactive({
-			return(
-				switch(input$dataType,
-					"Wave height" = paste("How high should we build a wall to protect from a \"once in a \u2026", input$dataTimeframe, "storm\"?"),
-					paste0("How extreme would we expect the ", tolower(input$dataType), " to be \"once every \u2026 ", input$dataTimeframe, "\"?")  # Default text if nothing else matches
-				)
-			)
-		})
-		# Need one of each of these per box in the app
-		observe(priority = -1, {
-			updateSliderInput(session, "RFWallHeightInput", label = howExtremesliderInputLabelGenerator())
-			updateSliderInput(session, "gumbelWallHeightInput", label = howExtremesliderInputLabelGenerator())
-			updateSliderInput(session, "GEVWallHeightInput", label = howExtremesliderInputLabelGenerator())
-			updateSliderInput(session, "normalWallHeightInput", label = howExtremesliderInputLabelGenerator())
-			updateSliderInput(session, "expWallHeightInput", label = howExtremesliderInputLabelGenerator())
-			updateSliderInput(session, "gammaWallHeightInput", label = howExtremesliderInputLabelGenerator())
-		})
-
-		# The sentence before the "how extreme answer is given"
-		howExtremeAnswerPreambleGenerator <- reactive({
-			return(
-				switch(input$dataType,
-					"Wave height" = "The required height \\(z\\) of the wall can be calculated as,",
-					paste0("We would expect to see an extreme ", tolower(input$dataType), " \\(z\\) equal to,")  # Default text if nothing else matches
-				)
-			)
-		})
-		# Need one of each of these per box in the app
-		output$howExtremeAnswerPreamble1 <- renderText({howExtremeAnswerPreambleGenerator()})
-		output$howExtremeAnswerPreamble2 <- renderText({howExtremeAnswerPreambleGenerator()})
-		output$howExtremeAnswerPreamble3 <- renderText({howExtremeAnswerPreambleGenerator()})
-		output$howExtremeAnswerPreamble4 <- renderText({howExtremeAnswerPreambleGenerator()})
-		output$howExtremeAnswerPreamble5 <- renderText({howExtremeAnswerPreambleGenerator()})
-		output$howExtremeAnswerPreamble6 <- renderText({howExtremeAnswerPreambleGenerator()})
-
-
 		####### Relative frequencies page ###########
-		output$RFtablePreamble <- renderUI({
-			withMathJax(
-				paste0(
-					"There are \\(n=",
-					dataLength(),
-					"\\) observations in the dataset you provided. ",
-					"Therefore the probability of exceeding ",
-					"\\(x\\) is $$\\mathrm{Pr}(X>x)=\\frac{\\text{Number of observations exceeding }x}{\\text{Total number of observations } (n=",
-					dataLength(), ")}$$")
-				)
+		
+		### Relative Frequency Model ###
+		# Create a Relative Frequency model instance
+		relativeFrequency <- reactive({
+		  return(RelativeFrequency$new(dataset()))
 		})
-
-		#' Create data frame of cumulative counts and probabilities
-		#' @return Data frame with three columns:
-		#'           1) x values at regular intervals.
-		#'           2) Number of data points that exceed x
-		#'           3) Pr(X > x)
-		relFreqTable <- reactive({
-			prettyBreakInt <- diff(dataPrettyBreaks())[[1]]
-
-			# x values at regular intervals
-			x <- seq(from = min(dataPrettyBreaks()) - 2 * prettyBreakInt,
-			         to = max(dataPrettyBreaks()) + 3 * prettyBreakInt,
-			         by = prettyBreakInt)
-
-			# How many data points exceed each of these x values
-			nExceedingX <- sapply(x, function(xVal) sum(dataset()$getData() > xVal))
-
-			# Find relative exceedance probability
-			probExceedX <- nExceedingX / dataLength()
-
-			# Output these values in a data frame. Don't check the column names
-			# or it will substitute the " " in the names with ".".
-			return(
-				data.frame(x = x,
-				           `Number of observations exceeding x` = nExceedingX,
-				           `Probability of exceeding x` = probExceedX,
-				           check.names = FALSE)
-			)
-		})
-
-		output$RFtable <- renderTable({relFreqTable()},
-		                              include.rownames = FALSE)
-		outputOptions(output, "RFtable", priority = -1, suspendWhenHidden = FALSE)
-
-		# Data points for the relative frequency plot, but with dummy points either
-		# end of the dataset so the line can continue beyond the range of data.
-		relFrequencyPlotData <- reactive({
-			# Add some dummy points to the left and right of the actual dataset
-			LEFT_PADDING = 0.4
-			RIGHT_PADDING = 2.0
-			x = c(min(dataset()$getData()) - LEFT_PADDING,
-			      dataset()$getData(),
-						max(dataset()$getData()) + RIGHT_PADDING)
-
-			relFreqData <- tibble(
-				x = x,
-			  Probability = sapply(x, function(xVal) sum(dataset()$getData() > xVal) / dataLength())
-			)
-			return(relFreqData)
-		})
-
-		# The actual data points with the two dummy endpoints removed.
-		relFrequencyPlotData2 <- reactive({
-			d <- tibble(x = dataset()$getData(), Zeros = 0)
-		})
-
-		output$RFplot <- renderPlotly({
-			plot_ly(relFrequencyPlotData(),
-			        x = ~x,
-							y = ~Probability) %>%
-				add_lines(line = list(shape = "hv"),
-			            name = "Relative frequency",
-								  hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
-									                       input$dataUnits,
-																				 ") = %{y:.4f}")) %>%
-				add_markers(data = relFrequencyPlotData2(),
-				            y = ~Zeros,
-			              name = "Observations",
-									  hovertemplate = paste("%{x:.2f}", input$dataUnits)) %>%
-				layout(yaxis = list(title = "Probability"),
-				       hovermode = "x unified")
-		})
-		outputOptions(output, "RFplot", priority = -1, suspendWhenHidden = FALSE)
-
-		# Find a probability: input slider
-		output$RFProbabilitySlider <- renderUI({
-			req(dataset()$getData())
-			sliderRange <- range(relFrequencyPlotData()[, 1])
-			return(
-				sliderInput("RFProbabilityInput",
-				            label = paste(
-				            	"Choose a",
-				            	input$dataType,
-				            	"to find the probability of exceeding it every",
-				            	input$dataTimeframe
-				            ),
-				            min = max(0, sliderRange[1] - 2),
-				            max = max(0, sliderRange[2] + 3),
-				            value = round(runif(1, sliderRange[1], sliderRange[2]), 1),
-				            step = 0.05)
-			)
-		})
-		outputOptions(
-			output, "RFProbabilitySlider", priority = -2, suspendWhenHidden = TRUE
-		)
-
-		# Find a probability: text description
-		output$RFProbabilityDescription <- renderUI({
-			req(dataset()$getData())
-			exceedances <- sum(dataset()$getData() > input$RFProbabilityInput)
-			return(withMathJax(p(sprintf(
-				"We have seen %1$i instances when the %2$s has exceeded %3$.2f %4$s in
-				our %5$i observations. Therefore, the probability of observing a %2$s
-				greater than \\(x=%3$.2f\\) %4$s every %6$s is given by
-				$$\\mathrm{Pr}(X>x=%3$.2f)=\\frac{%1$i}{%5$i}=%7$0.4f
-				\\text{ (to 4 decimal places).} $$",
-				exceedances, #1
-				tolower(input$dataType), #2
-				input$RFProbabilityInput, #3
-				input$dataUnits, #4
-				dataLength(), #5
-				input$dataTimeframe, #6
-				exceedances / dataLength() #7
-			))))
-		})
-		outputOptions(output,
-		              "RFProbabilityDescription",
-									priority = -3,
-									suspendWhenHidden = TRUE)
-
-		# Find a wall height
-		output$RFWallHeightInput <- renderText({
-			paste(input$RFWallHeightInput, input$dataTimeframe)
-		})
-		output$RFWallHeightP <- renderUI({
-			withMathJax(sprintf("\\(p=%0.4f\\)", 1.0 / input$RFWallHeightInput))
-		})
-
-		output$RFWallHeightCalculation <- renderUI({
-			req(dataset())
-			return(
-				withMathJax(
-					sprintf(
-						"$$x=%0.2f\\text{ %s (to 2 decimal places).}$$",
-						dataset()$getData()[dataLength() - ceiling(dataLength() / input$RFWallHeightInput) + 1],
-						input$dataUnits
-					)
-				)
-			)
-		})
+		
+		# Pass the Relative Frequency model to the server module
+		probabilityModelServer("RelativeFrequency",
+		                       relativeFrequency,
+		                       inputUnits,
+		                       inputTimeframe,
+		                       inputDataType)
+		
+		## Need to hide the standard error option for the return level as there is
+		# no method for its calculation
+		shinyjs::hide(NS("RelativeFrequency", id = "standardError"))
+		shinyjs::hide(NS("RelativeFrequency", id = "tablePreamble"))
+		shinyjs::hide(NS("RelativeFrequency", id = "standardErrorWall"))
 
 		####### Probability model page ###########
 
@@ -334,10 +124,7 @@ shinyServer(
 		gumbel <- reactive({
 		  return(Gumbel$new(dataset()))
 		})
-		
-		inputUnits <- reactive({input$dataUnits})
-		inputTimeframe <- reactive({input$dataTimeframe})
-		inputDataType <- reactive({input$dataType})
+
 		
 		# Pass the Gumbel model to the server module
 		probabilityModelServer("Gumbel",
@@ -405,13 +192,12 @@ shinyServer(
 		######### Comparison page ###########
 		# Create data table of cumulative counts and probabilities
 		comparisonTable <- reactive({
-			comp <- relFreqTable()
-			names(comp)[3] <- "Relative Frequency"
-			comp$Gumbel <- gumbel()$tableOfProbabilities()[, 2]
-			comp$GEV <- gev()$tableOfProbabilities()[, 2]
-			comp$Normal <- normal()$tableOfProbabilities()[, 2]
-			comp$Exponential <- exponential()$tableOfProbabilities()[, 2]
-			comp$Gamma <- gamma()$tableOfProbabilities()[, 2]
+		  comp <- relativeFrequency()$tableOfProbabilities() %>%
+		    add_column(Gumbel = gumbel()$tableOfProbabilities()[, 2],
+		               GEV = gev()$tableOfProbabilities()[, 2],
+		               Normal = normal()$tableOfProbabilities()[, 2],
+		               Exponential = exponential()$tableOfProbabilities()[, 2],
+		               Gamma = gamma()$tableOfProbabilities()[, 2])
 			return(comp)
 		})
 		output$comparisonTable <- renderTable({
@@ -431,7 +217,7 @@ shinyServer(
 
 		# Create the plot
 		allPlotData <- reactive({
-			x <- pretty(relFreqTable()$x, n = 200)
+			x <- pretty(comparisonTable()$x, n = 200)
 			d <- tibble(
 				x = x,
 			  Gumbel = gumbel()$exceedanceProb(x),
@@ -461,12 +247,12 @@ shinyServer(
 																				 input$dataUnits,
 																				 ") = %{y:.4f}")) %>%
 			  add_lines(line = list(shape = "hv"),
-									data = relFrequencyPlotData(),
+									data = relativeFrequency()$plotData(),
 									name = "Relative frequency",
 									hovertemplate = paste0("Pr(X &#x3e; %{x:.2f} ",
 																				 input$dataUnits,
 																				 ") = %{y:.4f}")) %>%
-				add_markers(data = relFrequencyPlotData2(),
+				add_markers(data = relativeFrequency()$plotData2(),
 				            y = ~Zeros,
 			              name = "Observations",
 									  hovertemplate = paste("%{x:.2f}", input$dataUnits)) %>%
