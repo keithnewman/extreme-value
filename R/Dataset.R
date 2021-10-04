@@ -85,6 +85,8 @@ Dataset <- R6Class("Dataset",
     setData = function(newData) {
       assertthat::assert_that(is.numeric(newData),
                               base::length(newData) >= 2)
+      assertthat::assert_that(length(unique(newData)) > 1,
+                              msg = "All inputted values are identical!")
       private$data <- tibble::tibble(x = newData)
       invisible(private$data$x)
     },

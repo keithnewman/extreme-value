@@ -20,10 +20,22 @@ shinyServer(
 	function(input, output, session) {
 
 		manualData <- eventReactive(
-			eventExpr = c(input$submitManualData, input$clearManualData),
+			eventExpr = c(input$submitManualData),
 			# TODO: Add try-catch for the errors this can throw.
-			valueExpr = {return(DataFromString$new(input$manualDataInput,
-			                                       units = input$dataUnits))},
+			valueExpr = {
+			  return(
+			    tryCatch(
+			      {DataFromString$new(input$manualDataInput, units = input$dataUnits)},
+			      error = function(e) {
+			        session$sendCustomMessage(
+			          "dataErrorMessage",
+			          "There was an issue with the uploaded data. Please make sure you have provided at least 2 numerical values and that all the values provided are not all equal to each other."
+			        )
+			        return(NULL)
+			      }
+			    )
+			  )
+			},
 			ignoreInit = TRUE
 		)
 
@@ -49,9 +61,12 @@ shinyServer(
 			           need(length(manualData()) > 1, "Enter at least 2 valid values"))
 				# If invalid values were removed, activate the warning.
 				session$sendCustomMessage("dataInputError",
-				                          is.null(attr(manualData(), "na.action")))
-				return(manualData())
+				                          is.null(attr(manualData()$getData(),
+				                                       "na.action")))
+				d <- manualData()
 			}
+		  session$sendCustomMessage("dataErrorMessage", "") # Clears previous errors
+		  return(d)
 		})
 		
 		observe({
@@ -59,7 +74,7 @@ shinyServer(
 		  dataset()$setUnits(input$dataUnits)
 		})
 		
-		#
+		# Display the inputted data back out to the display.
 		output$datafile <- renderPrint({dataset()$getData()})
 
 		# Length of the Dataset

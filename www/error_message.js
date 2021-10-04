@@ -6,19 +6,17 @@
  *                2) A short description of the issue
  *                3) Any internal message that have been thrown.
  * */
-Shiny.addCustomMessageHandler("data-error-message", function(message) {
-  if (message[0]) {
-    $("#data-error-message-danger-message").removeClass("hidden");
-    $("#data-danger-summary").text(message[1]);
-    $("#data-danger-full").text(message[2]);
+Shiny.addCustomMessageHandler("dataErrorMessage", function(message) {
+  if (message != "") {
+    $("#data-danger-message").removeClass("hidden");
+    $("#data-danger-summary").text(message);
     $("#manualDataInput").parent().removeClass("has-success");
     $("#manualDataInput").parent().addClass("has-danger");
   } else {
-    $("#data-error-message-danger-message").addClass("hidden");
+    $("#data-danger-message").addClass("hidden");
     $("#manualDataInput").parent().removeClass("has-danger");
     $("#manualDataInput").parent().addClass("has-success");
     $("#data-danger-summary").text("");
-    $("#data-danger-full").text("");
   }
 });
 
