@@ -40,8 +40,10 @@ shinyServer(
 
 				validate(need(datafile, "Upload a dataset to begin."))
 				req(datafile)
-
-				return(DataFromFile$new(datafile$datapath, sep = input$sepControl))
+				
+				d <- DataFromFile$new(datafile$datapath, sep = input$sepControl)
+				d$setUnits(input$dataUnits)
+				return(d)
 			} else if (input$dataInputType == "manual") {
 				validate(need(manualData(), "Submit a valid dataset"),
 			           need(length(manualData()) > 1, "Enter at least 2 valid values"))
@@ -95,6 +97,8 @@ shinyServer(
 		inputUnits <- reactive({input$dataUnits})
 		inputTimeframe <- reactive({input$dataTimeframe})
 		inputDataType <- reactive({input$dataType})
+		
+		output$dataUnit <- renderText(inputUnits())
 		
 		####### Relative frequencies page ###########
 		

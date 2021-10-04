@@ -73,7 +73,34 @@ shinyUI(
 														#'text/comma-separated-values,text/plain',
 														#'.csv',
 														'text/plain','.txt')),
-									#checkboxInput("useExampleDataset", label = p(HTML("&hellip;"), "or check this box to use our example dataset about sea-surge heights measured in feet.", tags$small("Note: this will override any datafile you have uploaded!")), value = FALSE),
+								  pickerInput(
+									  inputId = "sepControl",
+									  label = HTML('Separator
+      								<a tabindex="0" data-toggle="popover" class="text-info" title="Separator" data-html="true" data-trigger="hover" data-placement="auto right" data-content="
+      								<p>Select what character is used to separate values in the data file that you upload.
+      								Multi-space will assume the separator is any amount of &lsquo;white space&rsquo;, that is one or more spaces, tabs, newlines or carriage returns.
+      								If one of your columns contains text that has spaces, but this text is not enclosed in quotation marks, you may see an error message of &ldquo;More columns than column names&rdquo;.
+      								This can be fixed by enclosing the strings in quotation marks or using tab or comma seperation in your datafile.</p>
+      								<p>You may have to override this setting to one of the following:</p>
+      								<ul>
+      									<li>Comma (&quot;,&quot;)</li>
+      									<li>Space (&quot;&nbsp;&quot;)</li>
+      									<li>Semi-colon (&quot;;&quot;)</li>
+      									<li>Tab (&quot;&#9;&quot;)</li>
+      								</ul>
+      								"><i class="fas fa-question-circle"></i></a>'),
+									  choices = c(`Multi-space` = "",
+									              Comma = ',',
+									              Space = " ",
+									              Semicolon = ';',
+									              Tab = "\t"),
+									  choicesOpt = list(subtext = c("[\\s]+",
+									                                "[,]",
+									                                "[\\s]",
+									                                "[;]",
+									                                "[\\t]")),
+									  selected = ""
+									)
 								),
 								h3("What is your data about?"),
 								selectInput("dataType", label = p("Select what your data represents:"),

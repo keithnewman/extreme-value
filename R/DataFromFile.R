@@ -19,7 +19,7 @@ DataFromFile <- R6Class(
       invisible(
         super$setData(
           na.omit(as.numeric(unlist(
-            read.table(datafile$datapath, sep = input$sepControl, ...)
+            read.table(file, sep = sep, ...)
           )))
         )
       )
