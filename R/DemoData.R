@@ -91,7 +91,7 @@ DemoData <- R6Class(
         data = c(340,240,220,273,266,250,270,250,242,189,269,212,230,249,
                  188,248,201,227,201,278,190,293,231,268,257,185,201,226,
                  310,210,191,223,182,229,226,237,256,212,250,219,243,241,
-                 196,202,251),
+                 196,202,251)/10,
         units = "m/s",
         type = "Windspeed",
         description = "This is a data set of annual maximum daily maximum windspeeds (m/s), from 1971&ndash;2015 (inclusive), recorded in Bamberg, Germany.",
