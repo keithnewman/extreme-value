@@ -46,6 +46,8 @@ shinyServer(
 			  d <- DemoData$new(input$demoData)
 				updateSelectInput(session, inputId = "dataUnits", selected = d$units)
 				updateSelectInput(session, inputId = "dataType", selected = d$type)
+				session$sendCustomMessage("updateDemoDescription",
+				                          c(d$description, d$mapUrl))
 				return(d)
 			} else if (input$dataInputType == "file") {
 				datafile <- input$dataIn

@@ -37,3 +37,13 @@ Shiny.addCustomMessageHandler("dataInputError", function(isOK) {
     $("#manualDataInput").parent().addClass("has-warning");
   }
 });
+
+/**
+ * If a demo dataset is selected, update the description and map's iframe src
+ * for the current demo dataset.
+ * @param details Array containing the [description, mapUrl] for the demo data.
+ * */
+Shiny.addCustomMessageHandler("updateDemoDescription", function(details) {
+  $("#demoDatasetDescription").html(details[0]);
+  $("#demoDatasetMap").attr("src", details[1]);
+});
